@@ -1,0 +1,95 @@
+version: '3.9'
+services:
+  web:
+    build: .
+    container_name: web-tiktok-clone-web
+    environment:
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXT_PUBLIC_ROOT_URL: ${NEXT_PUBLIC_ROOT_URL:-http://localhost:3000}
+      NEXT_PUBLIC_SANITY_PROJECT_ID: ${NEXT_PUBLIC_SANITY_PROJECT_ID}
+      NEXT_PUBLIC_SANITY_API_VERSION: ${NEXT_PUBLIC_SANITY_API_VERSION}
+      NEXT_PUBLIC_SANITY_TOKEN: ${NEXT_PUBLIC_SANITY_TOKEN}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+    ports:
+      - '3000:3000'
+    depends_on:
+      - scraper
+    volumes:
+      - shared-data:/app/shared
+    env_file:
+      - .env.local
+
+  web-dev:
+    image: oven/bun:1
+    container_name: web-tiktok-clone-web-dev
+    working_dir: /app
+    environment:
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXT_PUBLIC_ROOT_URL: ${NEXT_PUBLIC_ROOT_URL:-http://localhost:3000}
+      NEXT_PUBLIC_SANITY_PROJECT_ID: ${NEXT_PUBLIC_SANITY_PROJECT_ID}
+      NEXT_PUBLIC_SANITY_API_VERSION: ${NEXT_PUBLIC_SANITY_API_VERSION}
+      NEXT_PUBLIC_SANITY_TOKEN: ${NEXT_PUBLIC_SANITY_TOKEN}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      NODE_ENV: development
+    ports:
+      - '3000:3000'
+    volumes:
+      - .:/app
+      - bun-cache:/root/.bun
+      - node_modules:/app/node_modules
+      - shared-data:/app/shared
+    command: >-
+      sh -c "bun install --no-progress && bun x next dev -p 3000"
+    depends_on:
+      - scraper
+    env_file:
+      - .env.local
+    profiles:
+      - dev
+
+  scraper:
+    build:
+      context: .
+      dockerfile: python-scraper/Dockerfile
+    container_name: web-tiktok-clone-scraper
+    environment:
+      - DAILY_INTERVAL_SECONDS=86400
+      - DAILY_PAGE_LIMIT=1
+      - SAVE_DEBUG_HTML=0
+      - SCRAPER_PORT=4000
+    ports:
+      - '4000:4000'
+    volumes:
+      - shared-data:/app/shared
+
+  publisher:
+    image: oven/bun:1
+    container_name: web-tiktok-clone-publisher
+    working_dir: /app
+    environment:
+      NEXT_PUBLIC_SANITY_PROJECT_ID: ${NEXT_PUBLIC_SANITY_PROJECT_ID}
+      NEXT_PUBLIC_SANITY_DATASET: ${NEXT_PUBLIC_SANITY_DATASET:-production}
+      NEXT_PUBLIC_SANITY_API_VERSION: ${NEXT_PUBLIC_SANITY_API_VERSION}
+      NEXT_PUBLIC_SANITY_TOKEN: ${NEXT_PUBLIC_SANITY_TOKEN}
+    command: >-
+      sh -c 'while true; do
+        echo "$(date -Iseconds) publish-sanity start" >> /app/shared/publisher.log;
+        bun x node scripts/publish-sanity.js >> /app/shared/publisher.log 2>&1 || true;
+        echo "$(date -Iseconds) publish-sanity complete" >> /app/shared/publisher.log;
+        printf "{\"lastRun\":\"%s\",\"nextRunInSeconds\":86400}" "$(date -Iseconds)" > /app/shared/publisher-status.json;
+        sleep 86400;
+      done'
+    volumes:
+      - .:/app
+      - shared-data:/app/shared
+    depends_on:
+      - scraper
+    env_file:
+      - .env.local
+
+volumes:
+  shared-data:
+  bun-cache:
+  node_modules:

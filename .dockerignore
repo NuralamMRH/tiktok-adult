@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.DS_Store
+*.log
+python-scraper/debug-pages
+python-scraper/__pycache__
+scripts/.env
+.env*
+*~
+

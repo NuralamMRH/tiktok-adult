@@ -1,0 +1,6 @@
+cloudscraper
+undetected-chromedriver
+selenium
+beautifulsoup4
+lxml
+
