@@ -67,13 +67,6 @@ async function ensureUsers(client, names) {
     if (!u) {
       const id = nanoid();
       const img = pick([
-        'https://i.pravatar.cc/300?img=5',
-        'https://i.pravatar.cc/300?img=12',
-        'https://i.pravatar.cc/300?img=25',
-        'https://i.pravatar.cc/300?img=31',
-        'https://i.pravatar.cc/300?img=45',
-        'https://i.pravatar.cc/300?img=52',
-        'https://i.pravatar.cc',
         'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg',
         'https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg',
         'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg',
@@ -94,6 +87,13 @@ async function ensureUsers(client, names) {
         'https://images.pexels.com/photos/4554019/pexels-photo-4554019.jpeg',
         'https://images.pexels.com/photos/45201/pexels-photo-45201.jpeg',
         'https://images.pexels.com/photos/1183266/pexels-photo-1183266.jpeg',
+        'https://i.pravatar.cc/300?img=5',
+        'https://i.pravatar.cc/300?img=12',
+        'https://i.pravatar.cc/300?img=25',
+        'https://i.pravatar.cc/300?img=31',
+        'https://i.pravatar.cc/300?img=45',
+        'https://i.pravatar.cc/300?img=52',
+        'https://i.pravatar.cc',
       ]);
       const followerCount = Math.floor(Math.random() * 5_000_000) + 1;
       const doc = {
