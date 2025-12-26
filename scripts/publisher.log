@@ -1,0 +1,30 @@
+2025-11-30T12:42:44+00:00 publish-sanity start
+error: Cannot find module '@sanity/client/csm' from '/root/.bun/install/cache/@sanity/client@7.13.1@@@1/dist/index.browser.js'
+
+Bun v1.3.3 (Linux x64 baseline)
+2025-11-30T12:42:59+00:00 publish-sanity complete
+2025-12-01T08:14:47+00:00 publish-sanity start
+error: Cannot find module '@sanity/client/csm' from '/root/.bun/install/cache/@sanity/client@7.13.1@@@1/dist/index.browser.js'
+
+Bun v1.3.3 (Linux x64 baseline)
+2025-12-01T08:14:54+00:00 publish-sanity complete
+2025-12-02T08:14:54+00:00 publish-sanity start
+error: Cannot find module '@sanity/client/csm' from '/root/.bun/install/cache/@sanity/client@7.13.1@@@1/dist/index.browser.js'
+
+Bun v1.3.3 (Linux x64 baseline)
+2025-12-02T08:14:54+00:00 publish-sanity complete
+2025-12-03T08:14:54+00:00 publish-sanity start
+error: Cannot find module '@sanity/client/csm' from '/root/.bun/install/cache/@sanity/client@7.13.1@@@1/dist/index.browser.js'
+
+Bun v1.3.3 (Linux x64 baseline)
+2025-12-03T08:14:57+00:00 publish-sanity complete
+2025-12-04T08:14:57+00:00 publish-sanity start
+error: Cannot find module '@sanity/client/csm' from '/root/.bun/install/cache/@sanity/client@7.13.1@@@1/dist/index.browser.js'
+
+Bun v1.3.3 (Linux x64 baseline)
+2025-12-04T08:14:58+00:00 publish-sanity complete
+2025-12-05T08:14:58+00:00 publish-sanity start
+error: Cannot find module '@sanity/client/csm' from '/root/.bun/install/cache/@sanity/client@7.13.1@@@1/dist/index.browser.js'
+
+Bun v1.3.3 (Linux x64 baseline)
+2025-12-05T08:15:01+00:00 publish-sanity complete

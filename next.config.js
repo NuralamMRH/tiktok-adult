@@ -12,6 +12,9 @@ const withPWA = require('next-pwa')({
 
 const nextConfig = withPWA({
   reactStrictMode: true,
+  env: {
+    NEXT_SHOW_ADSTRA_ADS: process.env.NEXT_SHOW_ADSTRA_ADS,
+  },
   images: {
     unoptimized: true,
     remotePatterns: [

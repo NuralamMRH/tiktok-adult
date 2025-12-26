@@ -138,7 +138,7 @@ export default function Profile({ data }: Props) {
     setIsRestore(false);
   }, [isRestore, prevScroll, setIsRestore, setPrevScroll]);
 
-  const TITLE = hasNoUser ? 'No User Found' : `${user?.userName} | TikTok`;
+  const TITLE = hasNoUser ? 'No User Found' : `${user?.userName} | xxxdeshi`;
 
   return (
     <Layout>
@@ -176,21 +176,19 @@ export default function Profile({ data }: Props) {
                 <TabItem name='Liked' tabIdx={1} tab={tab} setTab={setTab} />
               </div>
 
-              {isClient &&
-                process.env.NEXT_SHOW_ADSTRA_ADS === 'true' &&
-                process.env.NEXT_ONLY_VIDEO_BOTTOM_ADS !== 'true' && (
-                  <>
-                    <Script
-                      id='adstra-invoke-profile'
-                      strategy='lazyOnload'
-                      src='//bunchhigher.com/34ad64cee096a6379cfbc810d1fc4a17/invoke.js'
-                    />
-                    <div
-                      id='container-34ad64cee096a6379cfbc810d1fc4a17'
-                      className='my-4'
-                    />
-                  </>
-                )}
+              {isClient && process.env.NEXT_SHOW_ADSTRA_ADS === 'true' && (
+                <>
+                  <Script
+                    id='adstra-invoke-profile'
+                    strategy='lazyOnload'
+                    src='//bunchhigher.com/34ad64cee096a6379cfbc810d1fc4a17/invoke.js'
+                  />
+                  <div
+                    id='container-34ad64cee096a6379cfbc810d1fc4a17'
+                    className='my-4'
+                  />
+                </>
+              )}
 
               {/* no result */}
               {tab === 0 && userCreatedPosts?.length < 1 ? (

@@ -14,6 +14,7 @@ export const getServerSideProps: GetServerSideProps = async ({ res }) => {
     <sitemap><loc>${origin}/page_sitemap.xml</loc><lastmod>${lastmod}</lastmod></sitemap>
     <sitemap><loc>${origin}/video_sitemap.xml</loc><lastmod>${lastmod}</lastmod></sitemap>
     <sitemap><loc>${origin}/videos_sitemap.xml</loc><lastmod>${lastmod}</lastmod></sitemap>
+    <sitemap><loc>${origin}/images_sitemap.xml</loc><lastmod>${lastmod}</lastmod></sitemap>
     <sitemap><loc>${origin}/users_sitemap.xml</loc><lastmod>${lastmod}</lastmod></sitemap>
     <sitemap><loc>${origin}/captions_sitemap.xml</loc><lastmod>${lastmod}</lastmod></sitemap>
   </sitemapindex>`;
@@ -26,4 +27,3 @@ export const getServerSideProps: GetServerSideProps = async ({ res }) => {
 export default function DefaultSitemap() {
   return null;
 }
-

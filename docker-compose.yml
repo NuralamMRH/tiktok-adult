@@ -6,6 +6,7 @@ services:
     environment:
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       NEXT_PUBLIC_ROOT_URL: ${NEXT_PUBLIC_ROOT_URL:-http://localhost:3000}
+      SCRAPER_INTERNAL_URL: http://scraper:4000
       NEXT_PUBLIC_SANITY_PROJECT_ID: ${NEXT_PUBLIC_SANITY_PROJECT_ID}
       NEXT_PUBLIC_SANITY_API_VERSION: ${NEXT_PUBLIC_SANITY_API_VERSION}
       NEXT_PUBLIC_SANITY_TOKEN: ${NEXT_PUBLIC_SANITY_TOKEN}
@@ -27,6 +28,7 @@ services:
     environment:
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       NEXT_PUBLIC_ROOT_URL: ${NEXT_PUBLIC_ROOT_URL:-http://localhost:3000}
+      SCRAPER_INTERNAL_URL: http://scraper:4000
       NEXT_PUBLIC_SANITY_PROJECT_ID: ${NEXT_PUBLIC_SANITY_PROJECT_ID}
       NEXT_PUBLIC_SANITY_API_VERSION: ${NEXT_PUBLIC_SANITY_API_VERSION}
       NEXT_PUBLIC_SANITY_TOKEN: ${NEXT_PUBLIC_SANITY_TOKEN}
@@ -59,6 +61,7 @@ services:
       - DAILY_PAGE_LIMIT=1
       - SAVE_DEBUG_HTML=0
       - SCRAPER_PORT=4000
+      - USE_SELENIUM=0
     ports:
       - '4000:4000'
     volumes:
@@ -88,6 +91,8 @@ services:
       - scraper
     env_file:
       - .env.local
+    profiles:
+      - publisher
 
 volumes:
   shared-data:

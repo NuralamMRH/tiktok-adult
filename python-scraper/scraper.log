@@ -1,0 +1,389 @@
+2025-11-30T12:42:42+00:00 daily listing
+{"count": 30}
+2025-11-30T12:43:38+00:00 daily details
+Traceback (most recent call last):
+  File "/app/python-scraper/main.py", line 415, in extract_details
+    driver.get(url)
+  File "/app/venv/lib/python3.11/site-packages/undetected_chromedriver/__init__.py", line 629, in get_wrapped
+    return orig_get(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/undetected_chromedriver/__init__.py", line 665, in get
+    return super().get(url)
+           ^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 483, in get
+    self.execute(Command.GET, {"url": url})
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 458, in execute
+    self.error_handler.check_response(response)
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/errorhandler.py", line 233, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: timeout: Timed out receiving message from renderer: 59.923
+  (Session info: chrome=142.0.7444.175)
+Stacktrace:
+#0 0x64add4ae04ca <unknown>
+#1 0x64add452ee4b <unknown>
+#2 0x64add4516e14 <unknown>
+#3 0x64add4516af7 <unknown>
+#4 0x64add45148ff <unknown>
+#5 0x64add451527f <unknown>
+#6 0x64add4523cb3 <unknown>
+#7 0x64add453d5f1 <unknown>
+#8 0x64add4543dfb <unknown>
+#9 0x64add45159bd <unknown>
+#10 0x64add453d399 <unknown>
+#11 0x64add45ce169 <unknown>
+#12 0x64add4573c2a <unknown>
+#13 0x64add4574931 <unknown>
+#14 0x64add4aa6cf9 <unknown>
+#15 0x64add4aa9cdc <unknown>
+#16 0x64add4a8ff79 <unknown>
+#17 0x64add4aaa8b5 <unknown>
+#18 0x64add4a779c3 <unknown>
+#19 0x64add4acd228 <unknown>
+#20 0x64add4acd403 <unknown>
+#21 0x64add4adf463 <unknown>
+#22 0x7b4291f90b7b <unknown>
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/python-scraper/main.py", line 475, in <module>
+    extract_details(listing.get('posts', []))
+  File "/app/python-scraper/main.py", line 418, in extract_details
+    save_debug_html(url, driver.page_source if 'page_source' in dir(driver) else '')
+                         ^^^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/undetected_chromedriver/__init__.py", line 806, in __getattribute__
+    return super().__getattribute__(item)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 597, in page_source
+    return self.execute(Command.GET_PAGE_SOURCE)["value"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 458, in execute
+    self.error_handler.check_response(response)
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/errorhandler.py", line 233, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: timeout: Timed out receiving message from renderer: 60.000
+  (Session info: chrome=142.0.7444.175)
+Stacktrace:
+#0 0x64add4ae04ca <unknown>
+#1 0x64add452ee4b <unknown>
+#2 0x64add4516e14 <unknown>
+#3 0x64add4516af7 <unknown>
+#4 0x64add45148ff <unknown>
+#5 0x64add451527f <unknown>
+#6 0x64add4523cb3 <unknown>
+#7 0x64add453d5f1 <unknown>
+#8 0x64add4543dfb <unknown>
+#9 0x64add45159bd <unknown>
+#10 0x64add453d399 <unknown>
+#11 0x64add45cdcc7 <unknown>
+#12 0x64add4573c2a <unknown>
+#13 0x64add4574931 <unknown>
+#14 0x64add4aa6cf9 <unknown>
+#15 0x64add4aa9cdc <unknown>
+#16 0x64add4a8ff79 <unknown>
+#17 0x64add4aaa8b5 <unknown>
+#18 0x64add4a779c3 <unknown>
+#19 0x64add4acd228 <unknown>
+#20 0x64add4acd403 <unknown>
+#21 0x64add4adf463 <unknown>
+#22 0x7b4291f90b7b <unknown>
+
+2025-11-30T12:49:38+00:00 run complete; next in 86400s
+2025-12-01T12:49:38+00:00 daily listing
+{"count": 30}
+2025-12-01T12:49:59+00:00 daily details
+{"count": 30}
+Skip auto publish: missing Sanity env
+2025-12-01T12:53:22+00:00 run complete; next in 86400s
+2025-12-02T12:53:22+00:00 daily listing
+{"count": 30}
+2025-12-02T12:53:41+00:00 daily details
+{"count": 30}
+Skip auto publish: missing Sanity env
+2025-12-02T12:56:59+00:00 run complete; next in 86400s
+2025-12-03T12:56:59+00:00 daily listing
+Traceback (most recent call last):
+  File "/app/python-scraper/main.py", line 389, in <module>
+    extract_listing(target_url)
+  File "/app/python-scraper/main.py", line 356, in extract_listing
+    driver = uc.Chrome(options=options)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/undetected_chromedriver/__init__.py", line 466, in __init__
+    super(Chrome, self).__init__(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/chrome/webdriver.py", line 47, in __init__
+    super().__init__(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/chromium/webdriver.py", line 71, in __init__
+    super().__init__(command_executor=executor, options=options)
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 263, in __init__
+    self.start_session(capabilities)
+  File "/app/venv/lib/python3.11/site-packages/undetected_chromedriver/__init__.py", line 724, in start_session
+    super(selenium.webdriver.chrome.webdriver.WebDriver, self).start_session(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 366, in start_session
+    response = self.execute(Command.NEW_SESSION, caps)["value"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 458, in execute
+    self.error_handler.check_response(response)
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/errorhandler.py", line 233, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.SessionNotCreatedException: Message: session not created: cannot connect to chrome at 127.0.0.1:53157
+from session not created: This version of ChromeDriver only supports Chrome version 143
+Current browser version is 142.0.7444.175; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
+Stacktrace:
+#0 0x58bcd3a2116a <unknown>
+#1 0x58bcd349ec4b <unknown>
+#2 0x58bcd34dfbee <unknown>
+#3 0x58bcd34dea81 <unknown>
+#4 0x58bcd34d3f86 <unknown>
+#5 0x58bcd352424c <unknown>
+#6 0x58bcd352396c <unknown>
+#7 0x58bcd34e2c42 <unknown>
+#8 0x58bcd34e38f1 <unknown>
+#9 0x58bcd39e9f09 <unknown>
+#10 0x58bcd39ece4d <unknown>
+#11 0x58bcd39d2c51 <unknown>
+#12 0x58bcd39eda2b <unknown>
+#13 0x58bcd39b9a20 <unknown>
+#14 0x58bcd3a0ea78 <unknown>
+#15 0x58bcd3a0ec49 <unknown>
+#16 0x58bcd3a204c3 <unknown>
+#17 0x7eae9fa90b7b <unknown>
+
+2025-12-03T12:57:02+00:00 daily details
+Traceback (most recent call last):
+  File "/app/python-scraper/main.py", line 475, in <module>
+    extract_details(listing.get('posts', []))
+  File "/app/python-scraper/main.py", line 407, in extract_details
+    driver = uc.Chrome(options=options)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/undetected_chromedriver/__init__.py", line 466, in __init__
+    super(Chrome, self).__init__(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/chrome/webdriver.py", line 47, in __init__
+    super().__init__(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/chromium/webdriver.py", line 71, in __init__
+    super().__init__(command_executor=executor, options=options)
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 263, in __init__
+    self.start_session(capabilities)
+  File "/app/venv/lib/python3.11/site-packages/undetected_chromedriver/__init__.py", line 724, in start_session
+    super(selenium.webdriver.chrome.webdriver.WebDriver, self).start_session(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 366, in start_session
+    response = self.execute(Command.NEW_SESSION, caps)["value"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 458, in execute
+    self.error_handler.check_response(response)
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/errorhandler.py", line 233, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.SessionNotCreatedException: Message: session not created: cannot connect to chrome at 127.0.0.1:54317
+from session not created: This version of ChromeDriver only supports Chrome version 143
+Current browser version is 142.0.7444.175; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
+Stacktrace:
+#0 0x5f4b3011b16a <unknown>
+#1 0x5f4b2fb98c4b <unknown>
+#2 0x5f4b2fbd9bee <unknown>
+#3 0x5f4b2fbd8a81 <unknown>
+#4 0x5f4b2fbcdf86 <unknown>
+#5 0x5f4b2fc1e24c <unknown>
+#6 0x5f4b2fc1d96c <unknown>
+#7 0x5f4b2fbdcc42 <unknown>
+#8 0x5f4b2fbdd8f1 <unknown>
+#9 0x5f4b300e3f09 <unknown>
+#10 0x5f4b300e6e4d <unknown>
+#11 0x5f4b300ccc51 <unknown>
+#12 0x5f4b300e7a2b <unknown>
+#13 0x5f4b300b3a20 <unknown>
+#14 0x5f4b30108a78 <unknown>
+#15 0x5f4b30108c49 <unknown>
+#16 0x5f4b3011a4c3 <unknown>
+#17 0x729c026c2b7b <unknown>
+
+2025-12-03T12:57:05+00:00 run complete; next in 86400s
+2025-12-04T12:57:05+00:00 daily listing
+Traceback (most recent call last):
+  File "/app/python-scraper/main.py", line 389, in <module>
+    extract_listing(target_url)
+  File "/app/python-scraper/main.py", line 356, in extract_listing
+    driver = uc.Chrome(options=options)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/undetected_chromedriver/__init__.py", line 466, in __init__
+    super(Chrome, self).__init__(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/chrome/webdriver.py", line 47, in __init__
+    super().__init__(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/chromium/webdriver.py", line 71, in __init__
+    super().__init__(command_executor=executor, options=options)
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 263, in __init__
+    self.start_session(capabilities)
+  File "/app/venv/lib/python3.11/site-packages/undetected_chromedriver/__init__.py", line 724, in start_session
+    super(selenium.webdriver.chrome.webdriver.WebDriver, self).start_session(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 366, in start_session
+    response = self.execute(Command.NEW_SESSION, caps)["value"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 458, in execute
+    self.error_handler.check_response(response)
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/errorhandler.py", line 233, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.SessionNotCreatedException: Message: session not created: cannot connect to chrome at 127.0.0.1:43805
+from session not created: This version of ChromeDriver only supports Chrome version 143
+Current browser version is 142.0.7444.175; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
+Stacktrace:
+#0 0x566e2e2b116a <unknown>
+#1 0x566e2dd2ec4b <unknown>
+#2 0x566e2dd6fbee <unknown>
+#3 0x566e2dd6ea81 <unknown>
+#4 0x566e2dd63f86 <unknown>
+#5 0x566e2ddb424c <unknown>
+#6 0x566e2ddb396c <unknown>
+#7 0x566e2dd72c42 <unknown>
+#8 0x566e2dd738f1 <unknown>
+#9 0x566e2e279f09 <unknown>
+#10 0x566e2e27ce4d <unknown>
+#11 0x566e2e262c51 <unknown>
+#12 0x566e2e27da2b <unknown>
+#13 0x566e2e249a20 <unknown>
+#14 0x566e2e29ea78 <unknown>
+#15 0x566e2e29ec49 <unknown>
+#16 0x566e2e2b04c3 <unknown>
+#17 0x76d61f2c3b7b <unknown>
+
+2025-12-04T12:57:08+00:00 daily details
+Traceback (most recent call last):
+  File "/app/python-scraper/main.py", line 475, in <module>
+    extract_details(listing.get('posts', []))
+  File "/app/python-scraper/main.py", line 407, in extract_details
+    driver = uc.Chrome(options=options)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/undetected_chromedriver/__init__.py", line 466, in __init__
+    super(Chrome, self).__init__(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/chrome/webdriver.py", line 47, in __init__
+    super().__init__(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/chromium/webdriver.py", line 71, in __init__
+    super().__init__(command_executor=executor, options=options)
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 263, in __init__
+    self.start_session(capabilities)
+  File "/app/venv/lib/python3.11/site-packages/undetected_chromedriver/__init__.py", line 724, in start_session
+    super(selenium.webdriver.chrome.webdriver.WebDriver, self).start_session(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 366, in start_session
+    response = self.execute(Command.NEW_SESSION, caps)["value"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 458, in execute
+    self.error_handler.check_response(response)
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/errorhandler.py", line 233, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.SessionNotCreatedException: Message: session not created: cannot connect to chrome at 127.0.0.1:59113
+from session not created: This version of ChromeDriver only supports Chrome version 143
+Current browser version is 142.0.7444.175; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
+Stacktrace:
+#0 0x5c425391816a <unknown>
+#1 0x5c4253395c4b <unknown>
+#2 0x5c42533d6bee <unknown>
+#3 0x5c42533d5a81 <unknown>
+#4 0x5c42533caf86 <unknown>
+#5 0x5c425341b24c <unknown>
+#6 0x5c425341a96c <unknown>
+#7 0x5c42533d9c42 <unknown>
+#8 0x5c42533da8f1 <unknown>
+#9 0x5c42538e0f09 <unknown>
+#10 0x5c42538e3e4d <unknown>
+#11 0x5c42538c9c51 <unknown>
+#12 0x5c42538e4a2b <unknown>
+#13 0x5c42538b0a20 <unknown>
+#14 0x5c4253905a78 <unknown>
+#15 0x5c4253905c49 <unknown>
+#16 0x5c42539174c3 <unknown>
+#17 0x751937607b7b <unknown>
+
+2025-12-04T12:57:11+00:00 run complete; next in 86400s
+2025-12-05T12:57:11+00:00 daily listing
+Traceback (most recent call last):
+  File "/app/python-scraper/main.py", line 389, in <module>
+    extract_listing(target_url)
+  File "/app/python-scraper/main.py", line 356, in extract_listing
+    driver = uc.Chrome(options=options)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/undetected_chromedriver/__init__.py", line 466, in __init__
+    super(Chrome, self).__init__(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/chrome/webdriver.py", line 47, in __init__
+    super().__init__(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/chromium/webdriver.py", line 71, in __init__
+    super().__init__(command_executor=executor, options=options)
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 263, in __init__
+    self.start_session(capabilities)
+  File "/app/venv/lib/python3.11/site-packages/undetected_chromedriver/__init__.py", line 724, in start_session
+    super(selenium.webdriver.chrome.webdriver.WebDriver, self).start_session(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 366, in start_session
+    response = self.execute(Command.NEW_SESSION, caps)["value"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 458, in execute
+    self.error_handler.check_response(response)
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/errorhandler.py", line 233, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.SessionNotCreatedException: Message: session not created: cannot connect to chrome at 127.0.0.1:48567
+from session not created: This version of ChromeDriver only supports Chrome version 143
+Current browser version is 142.0.7444.175; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
+Stacktrace:
+#0 0x5b4090e7c16a <unknown>
+#1 0x5b40908f9c4b <unknown>
+#2 0x5b409093abee <unknown>
+#3 0x5b4090939a81 <unknown>
+#4 0x5b409092ef86 <unknown>
+#5 0x5b409097f24c <unknown>
+#6 0x5b409097e96c <unknown>
+#7 0x5b409093dc42 <unknown>
+#8 0x5b409093e8f1 <unknown>
+#9 0x5b4090e44f09 <unknown>
+#10 0x5b4090e47e4d <unknown>
+#11 0x5b4090e2dc51 <unknown>
+#12 0x5b4090e48a2b <unknown>
+#13 0x5b4090e14a20 <unknown>
+#14 0x5b4090e69a78 <unknown>
+#15 0x5b4090e69c49 <unknown>
+#16 0x5b4090e7b4c3 <unknown>
+#17 0x745c11919b7b <unknown>
+
+2025-12-05T12:57:17+00:00 daily details
+Traceback (most recent call last):
+  File "/app/python-scraper/main.py", line 475, in <module>
+    extract_details(listing.get('posts', []))
+  File "/app/python-scraper/main.py", line 407, in extract_details
+    driver = uc.Chrome(options=options)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/undetected_chromedriver/__init__.py", line 466, in __init__
+    super(Chrome, self).__init__(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/chrome/webdriver.py", line 47, in __init__
+    super().__init__(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/chromium/webdriver.py", line 71, in __init__
+    super().__init__(command_executor=executor, options=options)
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 263, in __init__
+    self.start_session(capabilities)
+  File "/app/venv/lib/python3.11/site-packages/undetected_chromedriver/__init__.py", line 724, in start_session
+    super(selenium.webdriver.chrome.webdriver.WebDriver, self).start_session(
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 366, in start_session
+    response = self.execute(Command.NEW_SESSION, caps)["value"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/webdriver.py", line 458, in execute
+    self.error_handler.check_response(response)
+  File "/app/venv/lib/python3.11/site-packages/selenium/webdriver/remote/errorhandler.py", line 233, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.SessionNotCreatedException: Message: session not created: cannot connect to chrome at 127.0.0.1:53657
+from session not created: This version of ChromeDriver only supports Chrome version 143
+Current browser version is 142.0.7444.175; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
+Stacktrace:
+#0 0x5e09445ce16a <unknown>
+#1 0x5e094404bc4b <unknown>
+#2 0x5e094408cbee <unknown>
+#3 0x5e094408ba81 <unknown>
+#4 0x5e0944080f86 <unknown>
+#5 0x5e09440d124c <unknown>
+#6 0x5e09440d096c <unknown>
+#7 0x5e094408fc42 <unknown>
+#8 0x5e09440908f1 <unknown>
+#9 0x5e0944596f09 <unknown>
+#10 0x5e0944599e4d <unknown>
+#11 0x5e094457fc51 <unknown>
+#12 0x5e094459aa2b <unknown>
+#13 0x5e0944566a20 <unknown>
+#14 0x5e09445bba78 <unknown>
+#15 0x5e09445bbc49 <unknown>
+#16 0x5e09445cd4c3 <unknown>
+#17 0x738b781ffb7b <unknown>
+
+2025-12-05T12:57:23+00:00 run complete; next in 86400s

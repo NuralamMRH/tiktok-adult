@@ -17,7 +17,7 @@ function esc(s: string) {
 }
 
 export const getServerSideProps: GetServerSideProps = async ({ res }) => {
-  const origin = ROOT_URL || 'http://localhost:3000';
+  const origin = ROOT_URL || 'http://xxxdeshi.xyz';
   let users: { _id: string; _updatedAt?: string }[] = [];
   try {
     users = await client.fetch(
@@ -45,4 +45,3 @@ export const getServerSideProps: GetServerSideProps = async ({ res }) => {
 export default function UsersSitemap() {
   return null;
 }
-

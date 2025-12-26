@@ -1,15 +1,52 @@
-import { MouseEvent, useEffect, useState } from 'react';
+import { MouseEvent, useEffect, useRef, useState } from 'react';
 import { useCheckOverflow } from '../../hooks/useCheckOverflow';
 import { formatDate } from '../../utils/formatDate';
 import Link from 'next/link';
 import { Video } from '../../types';
-import Script from 'next/script';
 
 type Props = {
   creator: Video['postedBy'];
   caption: string;
   createdAt: string | Date;
 };
+
+function InlineAd({
+  adKey,
+  height,
+  width,
+}: {
+  adKey: string;
+  height: number;
+  width: number;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    (window as typeof window & { atOptions?: unknown }).atOptions = {
+      key: adKey,
+      format: 'iframe',
+      height,
+      width,
+      params: {},
+    };
+
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = `https://www.highperformanceformat.com/${adKey}/invoke.js`;
+    container.appendChild(script);
+
+    return () => {
+      container.innerHTML = '';
+    };
+  }, [adKey, height, width]);
+
+  return <div ref={containerRef} className='h-full w-full' />;
+}
 
 export function VideoFooter({ creator, caption, createdAt }: Props) {
   const [isTextExpanded, setIsTextExpanded] = useState(false);
@@ -27,32 +64,7 @@ export function VideoFooter({ creator, caption, createdAt }: Props) {
   };
 
   return (
-    <div className='video-overlay-bg absolute bottom-0 left-0 w-full space-y-1 px-4 pb-6 text-sm text-white'>
-      {isClient && process.env.NEXT_SHOW_ADSTRA_ADS === 'true' && (
-        <>
-          <div className='fixed bottom-2 left-1/2 z-40 -translate-x-1/2'>
-            <Script id='adstra-inline-options' strategy='afterInteractive'>
-              {`atOptions = { 'key': 'db15771db06499df2dae745623193419', 'format': 'iframe', 'height': 60, 'width': 468, 'params': {} };`}
-            </Script>
-            <Script
-              id='adstra-inline-invoke'
-              strategy='afterInteractive'
-              src='//bunchhigher.com/db15771db06499df2dae745623193419/invoke.js'
-            />
-          </div>
-
-          <div className='fixed bottom-[70px] left-1/2 z-40 -translate-x-1/2'>
-            <Script id='adstra-rect-options' strategy='afterInteractive'>
-              {`atOptions = { 'key': '771efbd0629abd37a6249d9c668dd549', 'format': 'iframe', 'height': 250, 'width': 300, 'params': {} };`}
-            </Script>
-            <Script
-              id='adstra-rect-invoke'
-              strategy='afterInteractive'
-              src='//bunchhigher.com/771efbd0629abd37a6249d9c668dd549/invoke.js'
-            />
-          </div>
-        </>
-      )}
+    <div className='video-overlay-bg absolute bottom-0 left-0 w-full space-y-1 px-4 pb-0 text-sm text-white'>
       <p className='opacity-90'>
         <Link
           onClick={(e) => e.stopPropagation()}
@@ -89,6 +101,52 @@ export function VideoFooter({ creator, caption, createdAt }: Props) {
           </button>
         )}
       </div>
+
+      {isClient && process.env.NEXT_SHOW_ADSTRA_ADS !== 'false' && (
+        <>
+          <Link
+            href={
+              'https://www.effectivegatecpm.com/rf4kwyvw?key=5611682824598b90f7f470d185d6cb60'
+            }
+            className='block'
+            target='_blank'
+          >
+            <img
+              src='https://ic-vt-nss.xhcdn.com/a/M2Y4NTg2YjlhMjc3MDQ0M2FkOGI2ZGVjOWFhN2M5MmM/s(w:2560,h:1440),webp/026/359/490/v2/2560x1440.226.webp'
+              alt='Banner'
+              className='mt-3 h-[50px] w-full object-cover text-right'
+            />
+          </Link>
+
+          <div className='fixed left-1/2 top-2 z-40 -translate-x-1/2'>
+            <div className='float-end h-[50px] w-[300px]'>
+              <InlineAd
+                adKey='446cc2bf6c736ad4493623200de984b7'
+                height={250}
+                width={320}
+              />
+            </div>
+          </div>
+          <div className='fixed right-0 top-1/2 z-40 -translate-x-1/2'>
+            <div className='h-[250px] w-[300px]'>
+              <InlineAd
+                adKey='771efbd0629abd37a6249d9c668dd549'
+                height={250}
+                width={300}
+              />
+            </div>
+          </div>
+          <div className='fixed bottom-2 left-1/2 z-40 -translate-x-1/2'>
+            <div className='h-[60px] w-[468px]'>
+              <InlineAd
+                adKey='db15771db06499df2dae745623193419'
+                height={60}
+                width={468}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

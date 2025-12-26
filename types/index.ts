@@ -1,5 +1,7 @@
 export interface Video {
   caption: string;
+  topic?: string;
+  imageUrl?: string;
   video: {
     asset: {
       _id: string;

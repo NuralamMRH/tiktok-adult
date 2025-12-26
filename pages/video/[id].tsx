@@ -28,14 +28,31 @@ import { handleClickPosition } from '../../utils/handleClickPosition';
 
 interface DetailProps {
   videoDetail: Video;
+  origin: string;
 }
 
-export default function VideoDetail({ videoDetail }: DetailProps) {
+export default function VideoDetail({ videoDetail, origin }: DetailProps) {
   const router = useRouter();
   const { setIsRestore } = useStore();
   const { data: user }: any = useSession();
   const { deletingPost, handleDeletePost } = useDeletePost();
   const { handleLike } = useLike();
+
+  const normalizedOrigin = (
+    origin ||
+    process.env.NEXT_PUBLIC_ROOT_URL ||
+    'http://localhost:3000'
+  )
+    .toString()
+    .replace(/\/$/, '');
+  const postId = (router.query.id as string) || videoDetail?._id;
+  const postUrl = postId
+    ? `${normalizedOrigin}/video/${postId}`
+    : normalizedOrigin;
+
+  const caption = (videoDetail?.caption || '').toString().trim();
+  const topic = (videoDetail?.topic || '').toString().trim();
+  const imageUrl = (videoDetail?.imageUrl || '').toString().trim();
 
   const [showLogin, setShowLogin] = useState(false);
   const [showDeletePostModal, setShowDeletePostModal] = useState(false);
@@ -89,7 +106,7 @@ export default function VideoDetail({ videoDetail }: DetailProps) {
         setAlreadyLiked(true);
         try {
           await handleLike({ userId: user._id, postId: videoDetail._id });
-        } catch (error) {
+        } catch {
           setAlreadyLiked(false);
         }
       }
@@ -104,9 +121,12 @@ export default function VideoDetail({ videoDetail }: DetailProps) {
 
   const TITLE = !videoDetail
     ? 'No video found'
-    : `${videoDetail.caption} | TikTok Video`;
+    : `${caption || 'Video'}${topic ? ` - ${topic}` : ''} | TikTok Video`;
 
-  // set isRestore to true before history change to keep previous scroll in next page
+  const DESCRIPTION = !videoDetail
+    ? 'No video found'
+    : `${caption || 'Watch this video'}${topic ? ` | ${topic}` : ''}`;
+
   useEffect(() => {
     const onBeforeHistoryChange = () => {
       setIsRestore(true);
@@ -123,10 +143,25 @@ export default function VideoDetail({ videoDetail }: DetailProps) {
     <>
       <Head>
         <title>{TITLE}</title>
+        <link rel='canonical' href={postUrl} />
+        <meta property='og:url' content={postUrl}></meta>
+        <meta property='og:type' content='video.other'></meta>
+        <meta property='og:title' content={TITLE}></meta>
+        <meta property='og:description' content={DESCRIPTION}></meta>
+        {imageUrl ? <meta property='og:image' content={imageUrl}></meta> : null}
         <meta
-          property='og:url'
-          content={`https://tiktok-clone-zhy.vercel.app/video/${router.query.id}`}
+          name='twitter:card'
+          content={imageUrl ? 'summary_large_image' : 'summary'}
         ></meta>
+        <meta name='twitter:title' content={TITLE}></meta>
+        <meta name='twitter:description' content={DESCRIPTION}></meta>
+        {imageUrl ? (
+          <meta name='twitter:image' content={imageUrl}></meta>
+        ) : null}
+        {caption ? <meta name='caption' content={caption}></meta> : null}
+        {topic ? <meta name='topic' content={topic}></meta> : null}
+        <meta name='site_url' content={normalizedOrigin}></meta>
+        <meta name='description' content={DESCRIPTION}></meta>
       </Head>
 
       {!videoDetail ? (
@@ -211,7 +246,7 @@ export default function VideoDetail({ videoDetail }: DetailProps) {
                         if (v) {
                           v.removeAttribute('src');
                         }
-                      } catch (_) {}
+                      } catch {}
                     }}
                     className='video h-full w-full cursor-pointer object-cover object-center'
                   />
@@ -265,11 +300,19 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
   const videoId = params?.id;
   const currentUserId = session?._id;
 
+  const protoHeader = req.headers['x-forwarded-proto'];
+  const proto = Array.isArray(protoHeader)
+    ? protoHeader[0]
+    : protoHeader || 'http';
+  const hostHeader = req.headers['x-forwarded-host'] || req.headers.host || '';
+  const host = Array.isArray(hostHeader) ? hostHeader[0] : hostHeader;
+  const origin = host ? `${proto}://${host}` : ROOT_URL;
+
   const response = await axios.get(
-    `${ROOT_URL}/api/post/${videoId}?currentUserId=${currentUserId}`,
+    `${origin}/api/post/${videoId}?currentUserId=${currentUserId ?? ''}`,
   );
 
-  return { props: { videoDetail: response.data } };
+  return { props: { videoDetail: response.data, origin } };
 }
 
 type PlayPauseAniWrapperProps = {

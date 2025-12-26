@@ -17,6 +17,11 @@ export default {
       },
     },
     {
+      name: 'imageUrl',
+      title: 'ImageUrl',
+      type: 'string',
+    },
+    {
       name: 'sourceLink',
       title: 'SourceLink',
       type: 'string',

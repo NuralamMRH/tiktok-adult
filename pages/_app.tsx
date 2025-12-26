@@ -5,7 +5,6 @@ import { useRouter } from 'next/router';
 import NextNProgress from 'nextjs-progressbar';
 import useStore from '../store';
 import '../styles/globals.css';
-import Script from 'next/script';
 
 export default function App({
   Component,
@@ -15,6 +14,7 @@ export default function App({
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
   const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+  const showAdstraAds = process.env.NEXT_SHOW_ADSTRA_ADS !== 'false';
 
   useEffect(() => {
     if (
@@ -39,6 +39,73 @@ export default function App({
   }, []);
 
   useEffect(() => {
+    if (!isClient) return;
+
+    const ensureExternalScript = (id: string, src: string) => {
+      const existing = document.getElementById(id) as HTMLScriptElement | null;
+      if (existing) return existing;
+
+      const script = document.createElement('script');
+      script.id = id;
+      script.async = true;
+      script.src = src;
+      document.head.appendChild(script);
+      return script;
+    };
+
+    const ensureInlineScript = (id: string, code: string) => {
+      const existing = document.getElementById(id) as HTMLScriptElement | null;
+      if (existing) return existing;
+
+      const script = document.createElement('script');
+      script.id = id;
+      script.text = code;
+      document.head.appendChild(script);
+      return script;
+    };
+
+    let gaLoader: HTMLScriptElement | null = null;
+    let gaInit: HTMLScriptElement | null = null;
+    let adstraHead: HTMLScriptElement | null = null;
+    let adstraPop: HTMLScriptElement | null = null;
+
+    if (GA_ID) {
+      gaLoader = ensureExternalScript(
+        'ga-loader',
+        `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`,
+      );
+      gaInit = ensureInlineScript(
+        'ga-init',
+        `
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+window.gtag = window.gtag || gtag;
+gtag('js', new Date());
+gtag('config', '${GA_ID}', { page_path: window.location.pathname });
+        `.trim(),
+      );
+    }
+
+    if (showAdstraAds) {
+      adstraHead = ensureExternalScript(
+        'adstra-head',
+        '/https://pl27803066.effectivegatecpm.com/f9/ec/19/f9ec19fd63fe021bb37fbad13f97cecc.js',
+      );
+      adstraPop = ensureExternalScript(
+        'adstra-popunder',
+        'https://pl27848943.effectivegatecpm.com/b3/32/34/b33234daaf777c92e3d2b4a4fbea36bf.js',
+      );
+    }
+
+    return () => {
+      gaLoader?.remove();
+      gaInit?.remove();
+      adstraHead?.remove();
+      adstraPop?.remove();
+    };
+  }, [isClient, GA_ID, showAdstraAds]);
+
+  useEffect(() => {
     if (!GA_ID) return;
     const handleRouteChange = (url: string) => {
       const w: any = window;
@@ -59,41 +126,6 @@ export default function App({
         height={3}
         options={{ showSpinner: false }}
       />
-      {isClient && GA_ID && (
-        <Script
-          id='ga-loader'
-          strategy='afterInteractive'
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-        />
-      )}
-      {isClient && GA_ID && (
-        <Script id='ga-init' strategy='afterInteractive'>
-          {`
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', '${GA_ID}', { page_path: window.location.pathname });
-            `}
-        </Script>
-      )}
-      {isClient &&
-        process.env.NEXT_SHOW_ADSTRA_ADS === 'true' &&
-        process.env.NEXT_ONLY_VIDEO_BOTTOM_ADS !== 'true' && (
-          <Script
-            id='adstra-head'
-            strategy='afterInteractive'
-            src='//bunchhigher.com/f9/ec/19/f9ec19fd63fe021bb37fbad13f97cecc.js'
-          />
-        )}
-      {isClient &&
-        process.env.NEXT_SHOW_ADSTRA_ADS === 'true' &&
-        process.env.NEXT_ONLY_VIDEO_BOTTOM_ADS !== 'true' && (
-          <Script
-            id='adstra-popunder'
-            strategy='afterInteractive'
-            src='//bunchhigher.com/b3/32/34/b33234daaf777c92e3d2b4a4fbea36bf.js'
-          />
-        )}
       <Component {...pageProps} />
     </SessionProvider>
   );

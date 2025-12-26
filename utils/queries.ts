@@ -43,6 +43,8 @@ export const postDetailQuery = (postId: string | string[], userId: string) => {
   const query = `*[_type == "post" && _id == '${postId}']{
     _id,
      caption,
+     topic,
+     imageUrl,
        video{
         asset->{
           _id,

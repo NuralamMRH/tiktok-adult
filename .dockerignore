@@ -8,4 +8,4 @@ python-scraper/__pycache__
 scripts/.env
 .env*
 *~
-
+*.zip
