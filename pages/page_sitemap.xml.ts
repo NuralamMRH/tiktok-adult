@@ -1,13 +1,13 @@
 import type { GetServerSideProps } from 'next';
-import { ROOT_URL } from '../utils';
+import { getRequestOrigin } from '../utils';
 
 function isoDate(d?: Date | string) {
   const date = d ? new Date(d) : new Date();
   return date.toISOString();
 }
 
-export const getServerSideProps: GetServerSideProps = async ({ res }) => {
-  const origin = ROOT_URL || 'http://localhost:3000';
+export const getServerSideProps: GetServerSideProps = async ({ res, req }) => {
+  const origin = getRequestOrigin(req);
   const urls = [
     { loc: `${origin}/`, changefreq: 'hourly', priority: '1.0', lastmod: isoDate() },
     { loc: `${origin}/search`, changefreq: 'daily', priority: '0.8', lastmod: isoDate() },
@@ -33,4 +33,3 @@ export const getServerSideProps: GetServerSideProps = async ({ res }) => {
 export default function PageSitemap() {
   return null;
 }
-

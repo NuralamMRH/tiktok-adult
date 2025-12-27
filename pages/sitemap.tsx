@@ -2,7 +2,7 @@ import Head from 'next/head';
 import Layout from '../components/Layout';
 import { client } from '../utils/client';
 import type { GetServerSideProps } from 'next';
-import { ROOT_URL } from '../utils';
+import { getRequestOrigin } from '../utils';
 
 type PostLink = { _id: string; caption?: string };
 
@@ -12,7 +12,7 @@ type Props = {
   origin: string;
 };
 
-export const getServerSideProps: GetServerSideProps<Props> = async () => {
+export const getServerSideProps: GetServerSideProps<Props> = async ({ req }) => {
   let posts: PostLink[] = [];
   try {
     posts = await client.fetch(
@@ -22,7 +22,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async () => {
     posts = [];
   }
 
-  const origin = ROOT_URL || 'http://localhost:3000';
+  const origin = getRequestOrigin(req);
 
   const pages = [
     { url: '/', title: 'Home' },
@@ -91,4 +91,3 @@ export default function SiteMap({ posts, pages, origin }: Props) {
     </Layout>
   );
 }
-

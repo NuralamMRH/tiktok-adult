@@ -1,6 +1,6 @@
 import type { GetServerSideProps } from 'next';
 import { client } from '../utils/client';
-import { ROOT_URL } from '../utils';
+import { getRequestOrigin } from '../utils';
 
 function isoDate(d?: Date | string) {
   const date = d ? new Date(d) : new Date();
@@ -16,8 +16,8 @@ function esc(s: string) {
     .replace(/'/g, '&apos;');
 }
 
-export const getServerSideProps: GetServerSideProps = async ({ res }) => {
-  const origin = ROOT_URL || 'http://xxxdeshi.xyz';
+export const getServerSideProps: GetServerSideProps = async ({ res, req }) => {
+  const origin = getRequestOrigin(req);
   let users: { _id: string; _updatedAt?: string }[] = [];
   try {
     users = await client.fetch(

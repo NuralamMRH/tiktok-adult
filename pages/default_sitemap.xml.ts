@@ -1,13 +1,13 @@
 import type { GetServerSideProps } from 'next';
-import { ROOT_URL } from '../utils';
+import { getRequestOrigin } from '../utils';
 
 function isoDate(d?: Date | string) {
   const date = d ? new Date(d) : new Date();
   return date.toISOString();
 }
 
-export const getServerSideProps: GetServerSideProps = async ({ res }) => {
-  const origin = ROOT_URL || 'http://localhost:3000';
+export const getServerSideProps: GetServerSideProps = async ({ res, req }) => {
+  const origin = getRequestOrigin(req);
   const lastmod = isoDate();
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
   <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

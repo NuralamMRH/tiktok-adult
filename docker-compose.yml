@@ -4,14 +4,7 @@ services:
     build: .
     container_name: web-tiktok-clone-web
     environment:
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
-      NEXT_PUBLIC_ROOT_URL: ${NEXT_PUBLIC_ROOT_URL:-http://localhost:3000}
       SCRAPER_INTERNAL_URL: http://scraper:4000
-      NEXT_PUBLIC_SANITY_PROJECT_ID: ${NEXT_PUBLIC_SANITY_PROJECT_ID}
-      NEXT_PUBLIC_SANITY_API_VERSION: ${NEXT_PUBLIC_SANITY_API_VERSION}
-      NEXT_PUBLIC_SANITY_TOKEN: ${NEXT_PUBLIC_SANITY_TOKEN}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
     ports:
       - '3000:3000'
     depends_on:
@@ -26,14 +19,7 @@ services:
     container_name: web-tiktok-clone-web-dev
     working_dir: /app
     environment:
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
-      NEXT_PUBLIC_ROOT_URL: ${NEXT_PUBLIC_ROOT_URL:-http://localhost:3000}
       SCRAPER_INTERNAL_URL: http://scraper:4000
-      NEXT_PUBLIC_SANITY_PROJECT_ID: ${NEXT_PUBLIC_SANITY_PROJECT_ID}
-      NEXT_PUBLIC_SANITY_API_VERSION: ${NEXT_PUBLIC_SANITY_API_VERSION}
-      NEXT_PUBLIC_SANITY_TOKEN: ${NEXT_PUBLIC_SANITY_TOKEN}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       NODE_ENV: development
     ports:
       - '3000:3000'
@@ -75,10 +61,6 @@ services:
     container_name: web-tiktok-clone-publisher
     working_dir: /app
     environment:
-      NEXT_PUBLIC_SANITY_PROJECT_ID: ${NEXT_PUBLIC_SANITY_PROJECT_ID}
-      NEXT_PUBLIC_SANITY_DATASET: ${NEXT_PUBLIC_SANITY_DATASET:-production}
-      NEXT_PUBLIC_SANITY_API_VERSION: ${NEXT_PUBLIC_SANITY_API_VERSION}
-      NEXT_PUBLIC_SANITY_TOKEN: ${NEXT_PUBLIC_SANITY_TOKEN}
       SCRAPER_INTERNAL_URL: http://scraper:4000
       WEB_INTERNAL_URL: http://web:3000
     command: >-
