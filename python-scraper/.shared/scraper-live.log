@@ -775,3 +775,7 @@ Skip auto publish: AUTO_PUBLISH!=1
 2025-12-27T10:04:30.905710+00:00 run=de641879611240e783732b8fce33c954 canceled
 2025-12-27T10:04:30.908562+00:00 run=a4b59a96205547ac9e7005d28ae89426 start
 2025-12-27T10:04:30.909937+00:00 run=a4b59a96205547ac9e7005d28ae89426 target start baseUrl=https://mmsbaba.com pageLimit=296 maxPosts=0 mode=details
+2025-12-27T11:56:11.405795+00:00 run=3b29af94c26f47c1ba3f6a6afc3f7942 start
+2025-12-27T11:56:11.410420+00:00 run=3b29af94c26f47c1ba3f6a6afc3f7942 target start baseUrl=https://mmsbaba.com pageLimit=1 maxPosts=0 mode=scrape
+2025-12-27T11:56:16.555838+00:00 run=3b29af94c26f47c1ba3f6a6afc3f7942 target done exit=0
+2025-12-27T11:56:16.563794+00:00 run=3b29af94c26f47c1ba3f6a6afc3f7942 succeeded
