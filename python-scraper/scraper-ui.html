@@ -217,12 +217,61 @@
                 Download CSV
               </button>
               <button
+                id="publishSanityBtn"
+                class="rounded-xl border border-indigo-600/20 bg-indigo-600/10 px-4 py-2 text-xs font-bold text-indigo-400 transition hover:bg-indigo-600 hover:text-white"
+              >
+                Publish to Sanity
+              </button>
+              <button
                 id="deleteRunBtn"
                 class="rounded-xl border border-rose-600/20 bg-rose-600/10 px-4 py-2 text-xs text-rose-500 transition hover:bg-rose-600 hover:text-white"
               >
                 Delete Run
               </button>
             </div>
+          </div>
+
+          <div
+            id="publishPanel"
+            class="glass-card hidden overflow-hidden rounded-3xl border border-slate-800 p-6"
+          >
+            <div class="flex items-center justify-between gap-6">
+              <div class="min-w-0">
+                <div
+                  class="text-sm font-black uppercase tracking-widest text-slate-500"
+                >
+                  Sanity Publishing
+                </div>
+                <div
+                  id="publishStatusText"
+                  class="mt-2 text-sm font-bold text-white"
+                ></div>
+                <div
+                  id="publishResultText"
+                  class="mt-1 font-mono text-xs text-slate-400"
+                ></div>
+              </div>
+              <div class="flex items-center gap-3">
+                <div
+                  id="publishSpinner"
+                  class="hidden h-10 w-10 items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 text-indigo-400"
+                >
+                  <i class="fas fa-circle-notch fa-spin"></i>
+                </div>
+              </div>
+            </div>
+            <div
+              class="mt-4 h-2 w-full overflow-hidden rounded-full bg-slate-900"
+            >
+              <div
+                id="publishBar"
+                class="h-full w-0 rounded-full bg-gradient-to-r from-indigo-600 to-blue-500"
+              ></div>
+            </div>
+            <div
+              id="publishFailedList"
+              class="custom-scrollbar mt-4 hidden max-h-40 overflow-y-auto rounded-2xl border border-slate-900 bg-black/40 p-4 font-mono text-[11px] text-slate-200"
+            ></div>
           </div>
 
           <!-- POST CARDS GRID -->
@@ -488,6 +537,74 @@
                   </select>
                 </div>
               </div>
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+                <div class="space-y-2 md:col-span-1">
+                  <label
+                    class="text-[10px] font-black uppercase tracking-widest text-slate-500"
+                    >Pagination Type</label
+                  >
+                  <select
+                    id="paginationModeSelect"
+                    class="w-full cursor-pointer appearance-none rounded-2xl border border-slate-800 bg-black px-6 py-4 focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="">Template (pageN)</option>
+                    <option value="kvs_ajax">KVS AJAX</option>
+                  </select>
+                </div>
+                <div class="space-y-2 md:col-span-1">
+                  <label
+                    class="text-[10px] font-black uppercase tracking-widest text-slate-500"
+                    >Page 1 Path</label
+                  >
+                  <input
+                    id="paginationPage1Input"
+                    type="text"
+                    placeholder="/"
+                    class="w-full rounded-2xl border border-slate-800 bg-black px-6 py-4 font-medium transition focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div class="space-y-2 md:col-span-1">
+                  <label
+                    class="text-[10px] font-black uppercase tracking-widest text-slate-500"
+                    >Page N Template</label
+                  >
+                  <input
+                    id="paginationPageNInput"
+                    type="text"
+                    placeholder="/page/{page}/"
+                    class="w-full rounded-2xl border border-slate-800 bg-black px-6 py-4 font-medium transition focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div
+                id="ajaxPaginationFields"
+                class="grid hidden grid-cols-1 gap-6 md:grid-cols-2"
+              >
+                <div class="space-y-2">
+                  <label
+                    class="text-[10px] font-black uppercase tracking-widest text-slate-500"
+                    >AJAX Link Selector</label
+                  >
+                  <input
+                    id="ajaxPaginationSelectorInput"
+                    type="text"
+                    placeholder='a[data-action="ajax"][data-block-id][data-parameters]'
+                    class="w-full rounded-2xl border border-slate-800 bg-black px-6 py-4 font-medium transition focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div class="space-y-2">
+                  <label
+                    class="text-[10px] font-black uppercase tracking-widest text-slate-500"
+                    >AJAX Next Selector</label
+                  >
+                  <input
+                    id="ajaxPaginationNextSelectorInput"
+                    type="text"
+                    placeholder='a.next[data-action="ajax"][data-block-id][data-parameters]'
+                    class="w-full rounded-2xl border border-slate-800 bg-black px-6 py-4 font-medium transition focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+              </div>
               <div class="space-y-4 pt-4">
                 <label
                   class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-500"
@@ -643,6 +760,8 @@
         selectedRunId: '',
         selectedRunPosts: [],
         editingTargetIndex: null,
+        publish: { running: false, total: 0, startedAt: 0, result: null },
+        webApiBase: '',
       };
 
       function el(id) {
@@ -712,6 +831,33 @@
         return j;
       }
 
+      async function resolveWebApiBase() {
+        if (state.webApiBase) return state.webApiBase;
+        const publishPath = '/api/admin/scraper/publish-sanity';
+        const proto = location.protocol;
+        const host = location.hostname;
+        const candidates = [];
+        if (location.port === '3000' || location.port === '3001')
+          candidates.push('');
+        candidates.push(`${proto}//${host}:3000`);
+        candidates.push(`${proto}//${host}:3001`);
+        candidates.push(`${proto}//${host}:3002`);
+        for (const base of candidates) {
+          const url = base ? `${base}${publishPath}` : publishPath;
+          try {
+            const r = await fetch(url, { method: 'OPTIONS' });
+            if (r.ok) {
+              state.webApiBase = base;
+              return base;
+            }
+          } catch {
+            continue;
+          }
+        }
+        state.webApiBase = `${proto}//${host}:3000`;
+        return state.webApiBase;
+      }
+
       function safeJsonParse(text) {
         try {
           return JSON.parse(text);
@@ -756,6 +902,43 @@
           maxPosts,
           config,
         };
+      }
+
+      function mergeConfig(baseConfig, overrideConfig) {
+        const base =
+          baseConfig && typeof baseConfig === 'object' ? baseConfig : {};
+        const over =
+          overrideConfig && typeof overrideConfig === 'object'
+            ? overrideConfig
+            : {};
+        const out = { ...base, ...over };
+        const keys = ['pagination', 'listing', 'details'];
+        for (const k of keys) {
+          const a = base[k] && typeof base[k] === 'object' ? base[k] : {};
+          const b = over[k] && typeof over[k] === 'object' ? over[k] : {};
+          const merged = { ...a, ...b };
+          if (Object.keys(merged).length) out[k] = merged;
+        }
+        return out;
+      }
+
+      function targetsFromPreset(preset) {
+        const p = preset && typeof preset === 'object' ? preset : {};
+        const baseConfig = {
+          pagination: p.pagination || {},
+          listing: p.listing || {},
+          details: p.details || {},
+        };
+        const rec = Array.isArray(p.recommendedTargets)
+          ? p.recommendedTargets
+          : [];
+        return rec
+          .map((t) => {
+            const n = normalizeTarget(t);
+            n.config = mergeConfig(baseConfig, n.config || {});
+            return n;
+          })
+          .filter((t) => t.baseUrl);
       }
 
       function targetLabel(t) {
@@ -855,7 +1038,87 @@
         );
         if (el('targetScheduleSelect'))
           el('targetScheduleSelect').value = 'none';
+        fillPaginationFieldsFromConfig();
         toggleModal('targetModal', true);
+      }
+
+      function fillPaginationFieldsFromConfig() {
+        const raw = String(el('targetConfigTextarea')?.value || '');
+        const cfg = safeJsonParse(raw) || {};
+        const pg =
+          cfg.pagination && typeof cfg.pagination === 'object'
+            ? cfg.pagination
+            : {};
+        const mode = String(pg.mode || pg.type || '')
+          .trim()
+          .toLowerCase();
+        const normalizedMode =
+          mode === 'kvs-ajax' || mode === 'ajax' || mode === 'kvs_ajax'
+            ? 'kvs_ajax'
+            : '';
+        el('paginationModeSelect').value = normalizedMode;
+        el('paginationPage1Input').value = String(pg.page1 || '');
+        el('paginationPageNInput').value = String(pg.pageN || pg.page_n || '');
+        el('ajaxPaginationSelectorInput').value = String(
+          pg.paginationSelector ||
+            pg.pagination_selector ||
+            pg.ajaxLinkSelector ||
+            pg.ajax_link_selector ||
+            '',
+        );
+        el('ajaxPaginationNextSelectorInput').value = String(
+          pg.nextSelector ||
+            pg.next_selector ||
+            pg.ajaxNextSelector ||
+            pg.ajax_next_selector ||
+            '',
+        );
+        const isAjax = normalizedMode === 'kvs_ajax';
+        el('ajaxPaginationFields')?.classList.toggle('hidden', !isAjax);
+      }
+
+      function applyPaginationFieldsToConfig(notifyError = true) {
+        const raw = String(el('targetConfigTextarea')?.value || '');
+        const parsed = safeJsonParse(raw);
+        if (raw.trim() && !parsed) {
+          if (notifyError)
+            notify('Invalid JSON in Advanced Selectors', 'error');
+          return false;
+        }
+        const cfg = parsed || {};
+        const pagination =
+          cfg.pagination && typeof cfg.pagination === 'object'
+            ? cfg.pagination
+            : {};
+        const mode = String(el('paginationModeSelect')?.value || '').trim();
+        const page1 = String(el('paginationPage1Input')?.value || '').trim();
+        const pageN = String(el('paginationPageNInput')?.value || '').trim();
+        const ajaxSel = String(
+          el('ajaxPaginationSelectorInput')?.value || '',
+        ).trim();
+        const ajaxNext = String(
+          el('ajaxPaginationNextSelectorInput')?.value || '',
+        ).trim();
+
+        if (mode) pagination.mode = mode;
+        else delete pagination.mode;
+
+        if (page1) pagination.page1 = page1;
+        else delete pagination.page1;
+
+        if (pageN) pagination.pageN = pageN;
+        else delete pagination.pageN;
+
+        if (ajaxSel) pagination.paginationSelector = ajaxSel;
+        else delete pagination.paginationSelector;
+
+        if (ajaxNext) pagination.nextSelector = ajaxNext;
+        else delete pagination.nextSelector;
+
+        cfg.pagination = pagination;
+        el('targetConfigTextarea').value = JSON.stringify(cfg, null, 2);
+        fillPaginationFieldsFromConfig();
+        return true;
       }
 
       async function saveTargetFromModal() {
@@ -864,6 +1127,7 @@
           notify('Base URL is required', 'error');
           return;
         }
+        if (!applyPaginationFieldsToConfig(true)) return;
         const config =
           safeJsonParse(el('targetConfigTextarea').value || '') || {};
         const t = normalizeTarget({
@@ -1066,6 +1330,7 @@
         if (!state.selectedRunId && state.runs.length)
           state.selectedRunId = state.runs[0].id;
         if (state.selectedRunId) sel.value = state.selectedRunId;
+        updatePublishUi();
       }
 
       async function refreshRuns() {
@@ -1154,9 +1419,183 @@
           state.selectedRunId = runId;
           state.selectedRunPosts = extractPostsFromRun(r.data);
           renderResultsGrid();
+          updatePublishUi();
         } catch (e) {
           state.selectedRunPosts = [];
           renderResultsGrid();
+          updatePublishUi();
+        }
+      }
+
+      function getSelectedRunMeta() {
+        const runId = state.selectedRunId;
+        const run = state.runs.find((x) => x.id === runId);
+        return run || null;
+      }
+
+      function getPublishablePosts() {
+        const posts = state.selectedRunPosts || [];
+        const out = [];
+        for (const p of posts) {
+          if (!p || !p.link) continue;
+          const v = p.video_src || p.video_url;
+          if (!v) continue;
+          out.push(p);
+        }
+        return out;
+      }
+
+      function setPublishPanel({
+        show,
+        running,
+        statusText,
+        resultText,
+        percent,
+        failedSamples,
+      }) {
+        const panel = el('publishPanel');
+        if (!panel) return;
+        panel.classList.toggle('hidden', !show);
+        el('publishSpinner')?.classList.toggle('hidden', !running);
+        el('publishStatusText').textContent = statusText || '';
+        el('publishResultText').textContent = resultText || '';
+        const bar = el('publishBar');
+        if (bar)
+          bar.style.width = `${Math.max(0, Math.min(100, percent || 0))}%`;
+
+        const list = el('publishFailedList');
+        if (list) {
+          const items = Array.isArray(failedSamples) ? failedSamples : [];
+          list.classList.toggle('hidden', items.length === 0);
+          if (items.length) {
+            list.textContent = items
+              .map((x) => `${String(x.link || '')}\n  ${String(x.error || '')}`)
+              .join('\n\n');
+          } else {
+            list.textContent = '';
+          }
+        }
+      }
+
+      function updatePublishUi() {
+        const btn = el('publishSanityBtn');
+        if (!btn) return;
+        const run = getSelectedRunMeta();
+        const status = String(run?.status || '').toLowerCase();
+        const canPublish = status === 'succeeded';
+        btn.classList.toggle('hidden', !canPublish);
+        btn.disabled = !canPublish || state.publish.running;
+        btn.classList.toggle(
+          'opacity-40',
+          !canPublish || state.publish.running,
+        );
+        btn.classList.toggle(
+          'cursor-not-allowed',
+          !canPublish || state.publish.running,
+        );
+
+        if (!canPublish) {
+          setPublishPanel({
+            show: false,
+            running: false,
+            statusText: '',
+            resultText: '',
+            percent: 0,
+          });
+          return;
+        }
+        if (state.publish.running) return;
+        const publishable = getPublishablePosts();
+        setPublishPanel({
+          show: true,
+          running: false,
+          statusText: 'Ready to publish',
+          resultText: `Publishable posts: ${publishable.length}`,
+          percent: 0,
+        });
+      }
+
+      async function publishToSanity() {
+        const run = getSelectedRunMeta();
+        const status = String(run?.status || '').toLowerCase();
+        if (status !== 'succeeded') {
+          notify('Select a succeeded run first', 'error');
+          return;
+        }
+        const publishable = getPublishablePosts();
+        if (!publishable.length) {
+          notify('No publishable posts (missing link/video)', 'error');
+          return;
+        }
+
+        const publishPath = '/api/admin/scraper/publish-sanity';
+        const base = await resolveWebApiBase();
+        const publishUrl = base ? `${base}${publishPath}` : publishPath;
+
+        state.publish.running = true;
+        state.publish.total = publishable.length;
+        state.publish.startedAt = Date.now();
+        updatePublishUi();
+
+        setPublishPanel({
+          show: true,
+          running: true,
+          statusText: `Publishing ${publishable.length} posts...`,
+          resultText: '',
+          percent: 10,
+        });
+
+        const startedAt = Date.now();
+        const timer = window.setInterval(() => {
+          const elapsed = Math.max(0, Date.now() - startedAt);
+          const pct = 10 + Math.min(80, Math.floor(elapsed / 1000) * 2);
+          setPublishPanel({
+            show: true,
+            running: true,
+            statusText: `Publishing ${publishable.length} posts...`,
+            resultText: `Elapsed: ${Math.floor(elapsed / 1000)}s`,
+            percent: pct,
+          });
+        }, 800);
+
+        try {
+          const r = await apiSend(publishUrl, 'POST', {
+            posts: publishable,
+            runId: state.selectedRunId,
+          });
+          const d = r.data || {};
+          const posted = Number(d.posted || 0);
+          const skipped = Number(d.skipped || 0);
+          const failed = Number(d.failed || 0);
+          const total = Number(d.total || publishable.length);
+          const failedSamples = d.failedSamples || [];
+          notify(
+            `Published posted=${posted} skipped=${skipped} failed=${failed}`,
+            failed ? 'error' : 'success',
+          );
+          setPublishPanel({
+            show: true,
+            running: false,
+            statusText: failed
+              ? 'Finished with errors'
+              : 'Finished successfully',
+            resultText: `Total: ${total} · Posted: ${posted} · Skipped: ${skipped} · Failed: ${failed}`,
+            percent: 100,
+            failedSamples,
+          });
+        } catch (e) {
+          notify(String(e.message || e), 'error');
+          setPublishPanel({
+            show: true,
+            running: false,
+            statusText: 'Publish failed',
+            resultText: String(e.message || e),
+            percent: 0,
+          });
+        } finally {
+          window.clearInterval(timer);
+          state.publish.running = false;
+          updatePublishUi();
         }
       }
 
@@ -1344,9 +1783,7 @@
           const presetId = String(el('presetSelect')?.value || '').trim();
           state.selectedPresetId = presetId;
           const p = state.presets.find((x) => x.id === presetId);
-          const targets = (p?.recommendedTargets || [])
-            .map(normalizeTarget)
-            .filter((t) => t.baseUrl);
+          const targets = targetsFromPreset(p);
           state.targets = targets;
           renderTargets();
           notify('Preset loaded', 'success');
@@ -1361,6 +1798,25 @@
         el('reloadLogBtn')?.addEventListener('click', refreshLog);
         el('downloadCsvBtn')?.addEventListener('click', downloadCsv);
         el('deleteRunBtn')?.addEventListener('click', deleteSelectedRun);
+        el('publishSanityBtn')?.addEventListener('click', publishToSanity);
+        el('paginationModeSelect')?.addEventListener('change', () =>
+          applyPaginationFieldsToConfig(false),
+        );
+        el('paginationPage1Input')?.addEventListener('input', () =>
+          applyPaginationFieldsToConfig(false),
+        );
+        el('paginationPageNInput')?.addEventListener('input', () =>
+          applyPaginationFieldsToConfig(false),
+        );
+        el('ajaxPaginationSelectorInput')?.addEventListener('input', () =>
+          applyPaginationFieldsToConfig(false),
+        );
+        el('ajaxPaginationNextSelectorInput')?.addEventListener('input', () =>
+          applyPaginationFieldsToConfig(false),
+        );
+        el('targetConfigTextarea')?.addEventListener('input', () =>
+          fillPaginationFieldsFromConfig(),
+        );
         el('resultsRunSelect')?.addEventListener('change', async (e) => {
           const v = String(e.target.value || '');
           await loadRunPosts(v);
@@ -1375,9 +1831,7 @@
           state.selectedPresetId = state.presets[0]?.id || '';
           renderPresets();
           const p = state.presets.find((x) => x.id === state.selectedPresetId);
-          state.targets = (p?.recommendedTargets || [])
-            .map(normalizeTarget)
-            .filter((t) => t.baseUrl);
+          state.targets = targetsFromPreset(p);
           renderTargets();
         } catch (e) {
           notify(String(e.message || e), 'error');

@@ -27,7 +27,7 @@ export default function Sidebar() {
   const router = useRouter();
 
   return (
-    <aside className='side-bar hide-sidebar fixed top-0 z-30 flex h-full w-full max-w-[21rem] flex-col overflow-hidden overflow-y-auto bg-white p-2 shadow dark:bg-dark lg:static lg:bg-transparent lg:p-0 lg:shadow-none'>
+    <aside className='side-bar hide-sidebar fixed top-0 z-30 flex h-full w-full max-w-[21rem] flex-col overflow-y-auto overflow-x-hidden bg-white p-2 shadow dark:bg-dark lg:static lg:bg-transparent lg:p-0 lg:shadow-none'>
       {/* Sidebar drawer overlay */}
       {typeof window !== 'undefined' &&
         createPortal(<Overlay onClose={() => closeSidebar()} />, document.body)}

@@ -2,7 +2,15 @@ import { Video } from '../../types';
 import { IoMdHeart, IoMdPause } from 'react-icons/io';
 import { IoPlay } from 'react-icons/io5';
 import { HiVolumeOff, HiVolumeUp } from 'react-icons/hi';
-import { MouseEvent, ReactNode, useCallback, useRef, useState } from 'react';
+import {
+  MouseEvent,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import { useSession } from 'next-auth/react';
 import useDeletePost from '../../hooks/useDeletePost';
 import NotLoginModal from '../modal/NotLoginModal';
@@ -55,6 +63,9 @@ export default function VideoItem({
   const [heartPosition, setHeartPosition] = useState({ x: 0, y: 0 });
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const backgroundVideoRef = useRef<HTMLVideoElement>(null);
+  const longPressTimeoutRef = useRef<number | null>(null);
+  const [isFastPlayback, setIsFastPlayback] = useState(false);
 
   //hooks
   const router = useRouter();
@@ -149,6 +160,105 @@ export default function VideoItem({
     handleVideoDoubleClick,
   );
 
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimeoutRef.current) {
+      window.clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+  }, []);
+
+  const setPlaybackRate = useCallback((rate: number) => {
+    const v = videoRef.current;
+    if (v) v.playbackRate = rate;
+    const bg = backgroundVideoRef.current;
+    if (bg) bg.playbackRate = rate;
+  }, []);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    const bg = backgroundVideoRef.current;
+    if (!v || !bg) return;
+
+    const syncState = () => {
+      bg.playbackRate = v.playbackRate;
+
+      if (Math.abs(bg.currentTime - v.currentTime) > 0.3) {
+        bg.currentTime = v.currentTime;
+      }
+
+      if (v.paused) {
+        bg.pause();
+      } else {
+        bg.play().catch(() => {});
+      }
+    };
+
+    const syncTime = () => {
+      if (Math.abs(bg.currentTime - v.currentTime) > 0.3) {
+        bg.currentTime = v.currentTime;
+      }
+    };
+
+    const onPlay = () => {
+      bg.play().catch(() => {});
+    };
+    const onPause = () => {
+      bg.pause();
+    };
+    const onRateChange = () => {
+      bg.playbackRate = v.playbackRate;
+    };
+
+    v.addEventListener('play', onPlay);
+    v.addEventListener('pause', onPause);
+    v.addEventListener('ratechange', onRateChange);
+    v.addEventListener('timeupdate', syncTime);
+    v.addEventListener('seeking', syncTime);
+    v.addEventListener('seeked', syncTime);
+
+    syncState();
+
+    return () => {
+      v.removeEventListener('play', onPlay);
+      v.removeEventListener('pause', onPause);
+      v.removeEventListener('ratechange', onRateChange);
+      v.removeEventListener('timeupdate', syncTime);
+      v.removeEventListener('seeking', syncTime);
+      v.removeEventListener('seeked', syncTime);
+    };
+  }, []);
+
+  const handleLongPressStart = useCallback(
+    (e: ReactPointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('.action-btn-container')) return;
+
+      if (e.pointerType === 'mouse' && (e.buttons ?? 1) !== 1) return;
+
+      clearLongPressTimer();
+      longPressTimeoutRef.current = window.setTimeout(() => {
+        setIsFastPlayback(true);
+        setPlaybackRate(2);
+      }, 300);
+    },
+    [clearLongPressTimer, setPlaybackRate],
+  );
+
+  const handleLongPressEnd = useCallback(() => {
+    clearLongPressTimer();
+
+    if (!isFastPlayback) return;
+    setIsFastPlayback(false);
+    setPlaybackRate(1);
+  }, [clearLongPressTimer, isFastPlayback, setPlaybackRate]);
+
+  useEffect(() => {
+    return () => {
+      clearLongPressTimer();
+      setPlaybackRate(1);
+    };
+  }, [clearLongPressTimer, setPlaybackRate]);
+
   return (
     <>
       {showLogin && <NotLoginModal onClose={() => setShowLogin(false)} />}
@@ -179,11 +289,30 @@ export default function VideoItem({
         <div
           aria-label='video'
           onClick={handleVideoClick}
-          className='group relative flex max-h-[100vh] cursor-pointer items-center overflow-hidden rounded-2xl sm:h-full'
+          onPointerDown={handleLongPressStart}
+          onPointerUp={handleLongPressEnd}
+          onPointerCancel={handleLongPressEnd}
+          onPointerLeave={handleLongPressEnd}
+          onContextMenu={(e) => e.preventDefault()}
+          className='rounded-0 group relative isolate flex h-full w-full cursor-pointer items-center justify-center overflow-hidden bg-black sm:h-full sm:rounded-2xl'
         >
+          <video
+            ref={backgroundVideoRef}
+            aria-hidden
+            tabIndex={-1}
+            src={video.asset.url}
+            loop
+            muted
+            preload='metadata'
+            playsInline
+            className='pointer-events-none absolute inset-0 z-0 h-full w-full scale-110 object-cover object-center opacity-60 blur-2xl sm:hidden'
+          />
+
+          <div className='pointer-events-none absolute inset-0 z-0 bg-black/20 sm:hidden' />
+
           {showHeart && (
             <motion.div
-              className='pointer-events-none absolute text-5xl text-primary'
+              className='pointer-events-none absolute z-30 text-5xl text-primary'
               style={{ left: heartPosition.x, top: heartPosition.y }}
               initial={{ scale: 0, opacity: 0 }}
               animate={{
@@ -213,7 +342,7 @@ export default function VideoItem({
                 }
               } catch (_) {}
             }}
-            className='video h-full w-full cursor-pointer object-cover object-center'
+            className='video relative z-10 h-full w-full cursor-pointer object-contain object-center sm:object-cover'
           />
 
           {showPlayBtn && (
@@ -228,7 +357,7 @@ export default function VideoItem({
             </PlayPauseAniWrapper>
           )}
 
-          <div className='action-btn-container absolute left-1/2 top-0 z-20 flex -translate-x-1/2 items-center justify-between p-4 text-white group-hover:flex sm:left-auto sm:right-0 sm:translate-x-0'>
+          <div className='action-btn-container z-2000 absolute left-1/2 top-0 flex -translate-x-1/2 items-center justify-between p-4 text-white group-hover:flex sm:left-auto sm:right-0 sm:translate-x-0'>
             <>
               {isMute ? (
                 <HiVolumeOff size={27} onClick={handleMute} />
@@ -287,7 +416,7 @@ function PlayPauseAniWrapper({
 }: PlayPauseAniWrapperProps): JSX.Element {
   return (
     <motion.div
-      className='absolute left-1/2 top-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-[#00000045] p-1 text-white'
+      className='absolute left-1/2 top-1/2 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-[#00000045] p-1 text-white'
       initial={{
         scale: 0,
         opacity: 0,

@@ -79,10 +79,9 @@ export default function Navbar({ hasSidebar }: Props) {
             <>
               <Link
                 href='/upload'
-                className='btn-secondary mr-2 flex items-center'
+                className='btn-secondary mr-2 flex items-center justify-center rounded-full'
               >
                 <CgMathPlus />
-                <p className='ml-2'>Upload</p>
               </Link>
 
               <User />

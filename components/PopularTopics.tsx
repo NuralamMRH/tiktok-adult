@@ -24,7 +24,7 @@ function CaptionItem({ caption }: { caption: string }) {
         caption === activeCaption
           ? 'active-topic'
           : 'border-gray-200 bg-gray-100 text-gray-800 hover:border-gray-300 hover:bg-gray-200 dark:bg-darkBtn dark:text-gray-200 dark:hover:bg-darkBtnHover'
-      } flex items-center justify-center rounded-full border px-3 py-2 text-sm dark:border-darkSecondary`}
+      } flex items-center justify-center rounded-full border px-2 py-1 text-[10px] dark:border-darkSecondary sm:px-3 sm:py-2 sm:text-sm`}
     >
       <p className='ml-2'>{caption}</p>
     </button>
@@ -37,7 +37,7 @@ export default function PopularTopics() {
   useEffect(() => {
     let mounted = true;
     axios
-      .get(`${ROOT_URL}/api/caption?limit=10`)
+      .get(`${ROOT_URL}/api/caption?limit=100`)
       .then((res) => {
         if (!mounted) return;
         setCaptions(res.data);

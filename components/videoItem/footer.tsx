@@ -64,7 +64,7 @@ export function VideoFooter({ creator, caption, createdAt }: Props) {
   };
 
   return (
-    <div className='video-overlay-bg absolute bottom-0 left-0 w-full space-y-1 px-4 pb-0 text-sm text-white'>
+    <div className='video-overlay-bg absolute bottom-0 left-0 z-20 w-full space-y-1 px-4 pb-0 text-sm text-white'>
       <p className='opacity-90'>
         <Link
           onClick={(e) => e.stopPropagation()}
