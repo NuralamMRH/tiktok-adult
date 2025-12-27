@@ -1,7 +1,6 @@
 import { Video } from '../../types';
 import { IoMdHeart, IoMdPause } from 'react-icons/io';
 import { IoPlay } from 'react-icons/io5';
-import { HiVolumeOff, HiVolumeUp } from 'react-icons/hi';
 import {
   MouseEvent,
   ReactNode,
@@ -26,6 +25,7 @@ import { motion } from 'framer-motion';
 import { handleClickPosition } from '../../utils/handleClickPosition';
 import { VideoFooter } from './footer';
 import CommentsBottomSheet from '../modal/CommentsBottomSheet';
+import Image from 'next/image';
 
 interface Props {
   post: Video;
@@ -96,7 +96,7 @@ export default function VideoItem({
         setAlreadyLiked(false);
         setTotalLikes((prev) => prev - 1);
         await handleUnlike(obj);
-      } catch (error) {
+      } catch {
         setAlreadyLiked(true);
         setTotalLikes((prev) => prev + 1);
       }
@@ -105,7 +105,7 @@ export default function VideoItem({
         setAlreadyLiked(true);
         setTotalLikes((prev) => prev + 1);
         await handleLike(obj);
-      } catch (error) {
+      } catch {
         setAlreadyLiked(false);
         setTotalLikes((prev) => prev - 1);
       }
@@ -146,7 +146,7 @@ export default function VideoItem({
 
         try {
           await handleLike({ userId: user._id, postId: post._id });
-        } catch (error) {
+        } catch {
           setAlreadyLiked(false);
           setTotalLikes((prev) => prev - 1);
         }
@@ -310,6 +310,23 @@ export default function VideoItem({
 
           <div className='pointer-events-none absolute inset-0 z-0 bg-black/20 sm:hidden' />
 
+          <div className='pointer-events-none absolute left-3 top-3 z-20 opacity-90'>
+            <Image
+              src='/logo.png'
+              alt='logo watermark'
+              width={48}
+              height={48}
+            />
+          </div>
+          <div className='pointer-events-none absolute bottom-24 left-3 z-20 opacity-90 sm:bottom-6'>
+            <Image
+              src='/logo.png'
+              alt='logo watermark'
+              width={48}
+              height={48}
+            />
+          </div>
+
           {showHeart && (
             <motion.div
               className='pointer-events-none absolute z-30 text-5xl text-primary'
@@ -340,7 +357,7 @@ export default function VideoItem({
                 if (v) {
                   v.removeAttribute('src');
                 }
-              } catch (_) {}
+              } catch {}
             }}
             className='video relative z-10 h-full w-full cursor-pointer object-contain object-center sm:object-cover'
           />
@@ -356,16 +373,6 @@ export default function VideoItem({
               <IoMdPause className='h-full w-full' />
             </PlayPauseAniWrapper>
           )}
-
-          <div className='action-btn-container z-2000 absolute left-1/2 top-0 flex -translate-x-1/2 items-center justify-between p-4 text-white group-hover:flex sm:left-auto sm:right-0 sm:translate-x-0'>
-            <>
-              {isMute ? (
-                <HiVolumeOff size={27} onClick={handleMute} />
-              ) : (
-                <HiVolumeUp size={27} onClick={handleMute} />
-              )}
-            </>
-          </div>
 
           <VideoFooter
             creator={postedBy}
@@ -400,6 +407,8 @@ export default function VideoItem({
           setShowLoginModal={setShowLogin}
           setShowDeleteModal={setShowDeletePostModal}
           onShowComments={() => setShowComments(true)}
+          isMute={isMute}
+          handleMute={handleMute}
         />
       </InView>
     </>

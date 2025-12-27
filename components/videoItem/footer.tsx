@@ -108,10 +108,10 @@ export function VideoFooter({ creator, caption, createdAt }: Props) {
             href={
               'https://www.effectivegatecpm.com/rf4kwyvw?key=5611682824598b90f7f470d185d6cb60'
             }
-            className='block text-right'
+            className='block'
             target='_blank'
           >
-            <span className='block'>More Video</span>
+            <span className='block'>Close Ads</span>
           </Link>
 
           <div className='fixed left-1/2 top-2 z-40 -translate-x-1/2'>

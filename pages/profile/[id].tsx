@@ -44,10 +44,10 @@ function VideoItem({
     <Link
       onClick={onVideoClick}
       href={`/video/${videoId}`}
-      className='flex w-52 flex-col items-center xs:w-auto'
+      className='flex w-full min-w-0 flex-col'
     >
-      <div className='relative flex h-[290px] w-52 items-center justify-center overflow-hidden rounded-md bg-black xs:h-[250px] xs:w-auto'>
-        <video src={videoURL} className='object-cover' />
+      <div className='relative flex h-[260px] w-full items-center justify-center overflow-hidden rounded-md bg-black xs:h-[290px] sm:h-[250px]'>
+        <video src={videoURL} className='h-full w-full object-cover' />
 
         <div className='absolute bottom-0 left-0 flex w-full items-center p-2 py-3 text-sm text-white backdrop-blur-sm'>
           <BsHeartFill size={18} className='mr-1' /> {millify(likes)}
@@ -140,6 +140,44 @@ export default function Profile({ data }: Props) {
 
   const TITLE = hasNoUser ? 'No User Found' : `${user?.userName} | xxxdeshi`;
 
+  function InlineAd({
+    adKey,
+    height,
+    width,
+  }: {
+    adKey: string;
+    height: number;
+    width: number;
+  }) {
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      container.innerHTML = '';
+
+      (window as typeof window & { atOptions?: unknown }).atOptions = {
+        key: adKey,
+        format: 'iframe',
+        height,
+        width,
+        params: {},
+      };
+
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = `https://www.highperformanceformat.com/${adKey}/invoke.js`;
+      container.appendChild(script);
+
+      return () => {
+        container.innerHTML = '';
+      };
+    }, [adKey, height, width]);
+
+    return <div ref={containerRef} className='h-full w-full' />;
+  }
+
   return (
     <Layout>
       <Head>
@@ -213,7 +251,7 @@ export default function Profile({ data }: Props) {
                 />
               ) : (
                 // videos
-                <div className='mt-4 grid place-items-center gap-x-3 gap-y-5 pb-4 xs:grid-cols-auto-fill-180 xs:place-items-stretch'>
+                <div className='mt-4 grid w-full grid-cols-2 place-items-stretch gap-x-3 gap-y-5 pb-4 max-[360px]:grid-cols-1 sm:grid-cols-auto-fill-180 xl:grid-cols-6'>
                   {tab === 0 ? (
                     <>
                       {userCreatedPosts?.map((post) => (
@@ -242,6 +280,38 @@ export default function Profile({ data }: Props) {
                     </>
                   )}
                 </div>
+              )}
+
+              {isClient && process.env.NEXT_SHOW_ADSTRA_ADS !== 'false' && (
+                <>
+                  <div className='fixed left-1/2 top-2 z-40 -translate-x-1/2'>
+                    <div className='float-end h-[50px] w-[300px]'>
+                      <InlineAd
+                        adKey='446cc2bf6c736ad4493623200de984b7'
+                        height={250}
+                        width={320}
+                      />
+                    </div>
+                  </div>
+                  <div className='fixed right-0 top-1/2 z-40 -translate-x-1/2'>
+                    <div className='h-[250px] w-[300px]'>
+                      <InlineAd
+                        adKey='771efbd0629abd37a6249d9c668dd549'
+                        height={250}
+                        width={300}
+                      />
+                    </div>
+                  </div>
+                  <div className='fixed bottom-2 left-1/2 z-40 -translate-x-1/2'>
+                    <div className='h-[60px] w-[468px]'>
+                      <InlineAd
+                        adKey='db15771db06499df2dae745623193419'
+                        height={60}
+                        width={468}
+                      />
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           </>

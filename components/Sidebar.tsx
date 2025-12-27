@@ -60,7 +60,7 @@ export default function Sidebar() {
           <button
             aria-label='search'
             onClick={() => setShowMobileSearchBar(true)}
-            className='flex w-full items-center justify-start border border-gray-200 bg-gray-100 p-2 text-lg font-bold hover:border-gray-300 hover:bg-gray-200 focus-visible:outline-none dark:border-darkSecondary dark:bg-darkBtn dark:text-white dark:hover:bg-darkBtnHover md:hidden'
+            className='flex w-full items-center justify-start border border-gray-200 bg-gray-100 p-2 text-lg font-bold hover:border-gray-300 hover:bg-gray-200 focus-visible:outline-none dark:border-darkSecondary dark:bg-darkBtn dark:text-white dark:hover:bg-darkBtnHover'
           >
             <IoSearchCircle size={25} />
             <p className='ml-2'>Search</p>

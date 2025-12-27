@@ -1,6 +1,11 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { IoIosCopy, IoMdCheckmark, IoMdShareAlt } from 'react-icons/io';
+import {
+  IoIosCopy,
+  IoMdCheckmark,
+  IoMdDownload,
+  IoMdShareAlt,
+} from 'react-icons/io';
 import { nativeShareVia, shareVia } from '../../utils/shareVia';
 import { socialIcons } from '../../utils/constants';
 import useCopy from '../../hooks/useCopy';
@@ -12,6 +17,7 @@ import { ROOT_URL } from '../../utils';
 import millify from 'millify';
 import { AiOutlinePlus } from 'react-icons/ai';
 import { PiSpinnerGap } from 'react-icons/pi';
+import { HiVolumeOff, HiVolumeUp } from 'react-icons/hi';
 
 import {
   Dispatch,
@@ -32,6 +38,8 @@ interface Props {
   likeUnlikeHandler: () => Promise<void>;
   isAlreadyLike: boolean;
   liking: boolean;
+  isMute: boolean;
+  handleMute: (e: MouseEvent) => void;
   setShowLoginModal: Dispatch<SetStateAction<boolean>>;
   setShowDeleteModal: Dispatch<SetStateAction<boolean>>;
   onShowComments?: () => void;
@@ -42,6 +50,61 @@ interface ShareLinkProps {
   name: string;
   POST_URL: string;
   caption: string;
+}
+
+type FFmpegProgressEvent = {
+  progress: number;
+};
+
+let ffmpegLoadPromise: Promise<unknown> | null = null;
+let ffmpegInstance: unknown | null = null;
+
+async function getFFmpeg(onProgress?: (progress: number) => void) {
+  if (typeof window === 'undefined') {
+    throw new Error('FFmpeg can only run in the browser.');
+  }
+
+  if (ffmpegInstance) return ffmpegInstance as any;
+
+  if (!ffmpegLoadPromise) {
+    ffmpegLoadPromise = (async () => {
+      const [{ FFmpeg }, { toBlobURL }] = await Promise.all([
+        import('@ffmpeg/ffmpeg'),
+        import('@ffmpeg/util'),
+      ]);
+
+      const ffmpeg = new FFmpeg();
+
+      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+      await ffmpeg.load({
+        coreURL: await toBlobURL(
+          `${baseURL}/ffmpeg-core.js`,
+          'text/javascript',
+        ),
+        wasmURL: await toBlobURL(
+          `${baseURL}/ffmpeg-core.wasm`,
+          'application/wasm',
+        ),
+        workerURL: await toBlobURL(
+          `${baseURL}/ffmpeg-core.worker.js`,
+          'text/javascript',
+        ),
+      });
+
+      ffmpegInstance = ffmpeg;
+      return ffmpeg;
+    })();
+  }
+
+  const ffmpeg = (await ffmpegLoadPromise) as any;
+
+  if (onProgress) {
+    ffmpeg.on('progress', ({ progress }: FFmpegProgressEvent) => {
+      if (typeof progress === 'number') onProgress(progress);
+    });
+  }
+
+  return ffmpeg;
 }
 
 function ShareLink({ src, name, POST_URL, caption }: ShareLinkProps) {
@@ -71,6 +134,8 @@ export default function Reaction({
   likeUnlikeHandler,
   isAlreadyLike,
   liking,
+  isMute,
+  handleMute,
   setShowLoginModal,
   setShowDeleteModal,
   onShowComments,
@@ -79,6 +144,7 @@ export default function Reaction({
 
   const [isCreator, setIsCreator] = useState(false);
   const [alreadyFollow, setAlreadyFollow] = useState(!!postedBy.isFollowed);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const { data: user }: any = useSession();
   const { isCopied, copyToClipboard } = useCopy();
@@ -111,6 +177,150 @@ export default function Reaction({
     if (!u) return '';
     const s = u.trim().replace(/[)]+$/g, '');
     return s;
+  }
+
+  async function downloadHandler(e: MouseEvent) {
+    e.stopPropagation();
+
+    if (isDownloading) return;
+
+    setIsDownloading(true);
+
+    let ffmpeg: any;
+    try {
+      const { fetchFile } = await import('@ffmpeg/util');
+      ffmpeg = await getFFmpeg();
+
+      const inputUrl = video.video.asset.url;
+      const outputName = `video-${video._id}.mp4`;
+
+      await ffmpeg.writeFile('input.mp4', await fetchFile(inputUrl));
+      await ffmpeg.writeFile('logo.png', await fetchFile('/logo.png'));
+      await ffmpeg.writeFile('outro.mp4', await fetchFile('/logo-video.mp4'));
+
+      const watermarkGraph = [
+        '[1:v][0:v]scale2ref=w=main_w*0.18:h=-1[logo][base]',
+        '[logo]split=2[logo1][logo2]',
+        '[base][logo1]overlay=10:10[tmp]',
+        '[tmp][logo2]overlay=10:H-h-10[outv]',
+      ].join(';');
+
+      await ffmpeg.exec([
+        '-i',
+        'input.mp4',
+        '-i',
+        'logo.png',
+        '-filter_complex',
+        watermarkGraph,
+        '-map',
+        '[outv]',
+        '-map',
+        '0:a?',
+        '-c:v',
+        'libx264',
+        '-preset',
+        'ultrafast',
+        '-crf',
+        '23',
+        '-c:a',
+        'aac',
+        '-b:a',
+        '128k',
+        'watermarked.mp4',
+      ]);
+
+      const concatGraph = [
+        '[1:v][0:v]scale2ref=w=main_w:h=main_h[outroScaled][wmBase]',
+        '[wmBase]setsar=1[v0]',
+        '[outroScaled]setsar=1[v1]',
+        '[0:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[a0]',
+        '[1:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[a1]',
+        '[v0][a0][v1][a1]concat=n=2:v=1:a=1[outv][outa]',
+      ].join(';');
+
+      try {
+        await ffmpeg.exec([
+          '-i',
+          'watermarked.mp4',
+          '-i',
+          'outro.mp4',
+          '-filter_complex',
+          concatGraph,
+          '-map',
+          '[outv]',
+          '-map',
+          '[outa]',
+          '-c:v',
+          'libx264',
+          '-preset',
+          'ultrafast',
+          '-crf',
+          '23',
+          '-c:a',
+          'aac',
+          '-b:a',
+          '128k',
+          '-movflags',
+          '+faststart',
+          'output.mp4',
+        ]);
+      } catch {
+        const concatVideoOnlyGraph = [
+          '[1:v][0:v]scale2ref=w=main_w:h=main_h[outroScaled][wmBase]',
+          '[wmBase]setsar=1[v0]',
+          '[outroScaled]setsar=1[v1]',
+          '[v0][v1]concat=n=2:v=1:a=0[outv]',
+        ].join(';');
+
+        await ffmpeg.exec([
+          '-i',
+          'watermarked.mp4',
+          '-i',
+          'outro.mp4',
+          '-filter_complex',
+          concatVideoOnlyGraph,
+          '-map',
+          '[outv]',
+          '-c:v',
+          'libx264',
+          '-preset',
+          'ultrafast',
+          '-crf',
+          '23',
+          '-movflags',
+          '+faststart',
+          'output.mp4',
+        ]);
+      }
+
+      const outputData = (await ffmpeg.readFile('output.mp4')) as Uint8Array;
+      const outputBytes = new Uint8Array(outputData);
+      const blob = new Blob([outputBytes], { type: 'video/mp4' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = outputName;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+    } finally {
+      try {
+        if (ffmpeg) {
+          await Promise.allSettled([
+            ffmpeg.deleteFile('input.mp4'),
+            ffmpeg.deleteFile('logo.png'),
+            ffmpeg.deleteFile('outro.mp4'),
+            ffmpeg.deleteFile('watermarked.mp4'),
+            ffmpeg.deleteFile('output.mp4'),
+          ]);
+        }
+      } catch {}
+
+      setIsDownloading(false);
+    }
   }
 
   async function followHandler(e: MouseEvent) {
@@ -235,6 +445,33 @@ export default function Reaction({
           <RiMessage2Fill size={22} />
         </button>
         <p className='mt-1 text-sm'>{millify(video.comments?.length || 0)}</p>
+      </div>
+
+      {/* sound */}
+      <div className='flex flex-col items-center'>
+        <button
+          className='reaction-btn'
+          onClick={handleMute}
+          aria-label='toggle-sound'
+        >
+          {isMute ? <HiVolumeOff size={22} /> : <HiVolumeUp size={22} />}
+        </button>
+      </div>
+
+      {/* download */}
+      <div className='flex flex-col items-center'>
+        <button
+          className='reaction-btn'
+          onClick={downloadHandler}
+          aria-label='download-video'
+          disabled={isDownloading}
+        >
+          {isDownloading ? (
+            <PiSpinnerGap className='animate-spin' size={22} />
+          ) : (
+            <IoMdDownload size={24} />
+          )}
+        </button>
       </div>
 
       {/* share */}
