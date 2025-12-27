@@ -23,7 +23,7 @@ export function shareVia(via: string, postURL: string, postTitle: string) {
 
 export async function nativeShareVia(caption: string, postURL: string) {
   try {
-    await navigator.share({ title: 'TikTok', text: caption, url: postURL });
+    await navigator.share({ title: 'XXX DESHI', text: caption, url: postURL });
   } catch (err) {
     console.log(err);
   }

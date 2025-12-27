@@ -20,6 +20,7 @@ ENV NEXTAUTH_URL=http://localhost:3000
 ENV NEXT_PUBLIC_ROOT_URL=http://localhost:3000
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/scripts ./scripts
 COPY package.json ./package.json
 COPY --from=deps /app/node_modules ./node_modules
 EXPOSE 3000

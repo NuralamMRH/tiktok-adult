@@ -56,7 +56,7 @@ export default function MobileSearchBarModal({ onClose }: Props) {
                     as='h3'
                     className='border-b border-b-gray-200 pb-4 text-lg font-bold leading-5 dark:border-b-darkBorder'
                   >
-                    TikTok Search
+                    XXX DESHI Search
                   </Dialog.Title>
 
                   <form

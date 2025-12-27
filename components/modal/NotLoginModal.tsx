@@ -38,7 +38,7 @@ export default function NotLoginModal({ onClose }: Props) {
                     as='h3'
                     className='border-b border-b-gray-200 pb-4 text-lg font-bold leading-5 dark:border-b-darkBorder'
                   >
-                    Login to TikTok
+                    Login to XXX Deshi
                   </Dialog.Title>
                   <div className='mt-6 flex flex-col items-center justify-center'>
                     <p className='mb-4 text-sm tracking-wide text-gray-500 dark:text-gray-300'>

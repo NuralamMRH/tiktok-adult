@@ -121,7 +121,7 @@ export default function VideoDetail({ videoDetail, origin }: DetailProps) {
 
   const TITLE = !videoDetail
     ? 'No video found'
-    : `${caption || 'Video'}${topic ? ` - ${topic}` : ''} | TikTok Video`;
+    : `${caption || 'Video'}${topic ? ` - ${topic}` : ''} | XXX DESHI Video`;
 
   const DESCRIPTION = !videoDetail
     ? 'No video found'

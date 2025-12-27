@@ -16,8 +16,8 @@ import { closeSidebar } from '../utils/sidebar-drawer';
 
 const metadata = {
   description:
-    'TikTok, also known in China as Douyin, is a short-form video hosting service owned by the Chinese company ByteDance. It hosts user-submitted videos, which can range in duration from 3 seconds to 10 minutes.',
-  title: 'TikTok - Make Your Day',
+    'XXXX DESHI, Best XXX TikTok videos on XXX DESHI. Watch uncut, uncensored viral bangladeshi Indian Deshi XXX videos and mms now. XXX Desi MMS x clips awaits for you. XXX deshi Enjoy some of the hottest and newest leaked out Desi XXX available online for free xxxdeshi.xyz',
+  title: 'XXX DESHI - Make Your Night',
 };
 
 interface Props {

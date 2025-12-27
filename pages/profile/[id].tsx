@@ -146,7 +146,7 @@ export default function Profile({ data }: Props) {
         <title>{TITLE}</title>
         <meta
           property='og:url'
-          content={`https://tiktok-clone-zhy.vercel.app/profile/${router.query.id}`}
+          content={`https://xxxdeshi.xyz/profile/${router.query.id}`}
         ></meta>
       </Head>
 

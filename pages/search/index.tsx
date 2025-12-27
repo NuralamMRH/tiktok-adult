@@ -29,7 +29,7 @@ export default function Search({
   const hasSearchedUsers = searchedUsers?.length > 0;
   const hasSearchedPosts = searchedPosts?.length > 0;
 
-  const TITLE = `Find '${searchQuery}' on TikTok | TikTok Search`;
+  const TITLE = `Find '${searchQuery}' on XXX DESHI | XXX DESHI Search`;
 
   useEffect(() => {
     setTab(0);
@@ -41,7 +41,7 @@ export default function Search({
         <title>{TITLE}</title>
         <meta
           property='og:url'
-          content={`https://tiktok-clone-zhy.vercel.app/search?q=${router.query.q}`}
+          content={`https://xxxdeshi.xyz/search?q=${router.query.q}`}
         ></meta>
       </Head>
 

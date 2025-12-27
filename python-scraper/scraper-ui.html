@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ScrapeFlow v3 | Target Master</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #020617;
+        color: #e2e8f0;
+      }
+      .glass-card {
+        background: rgba(15, 23, 42, 0.8);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 5px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: #0f172a;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 10px;
+      }
+      .tab-content {
+        display: none;
+      }
+      .tab-content.active {
+        display: block;
+      }
+      .json-editor {
+        font-family: 'Fira Code', monospace;
+        background: #000;
+        color: #10b981;
+        border: 1px solid #1e293b;
+        resize: vertical;
+      }
+      .modal-overlay {
+        background: rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(10px);
+      }
+      .post-card:hover .post-actions {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body class="flex h-screen overflow-hidden">
+    <!-- Sidebar -->
+    <aside
+      id="sidebar"
+      class="glass-card z-50 flex h-full w-64 flex-col border-r border-slate-900"
+    >
+      <div class="p-6">
+        <div class="mb-10 flex items-center gap-3">
+          <div
+            class="rounded-xl bg-indigo-600 p-2 shadow-lg shadow-indigo-500/20"
+          >
+            <i class="fas fa-bolt text-xl text-white"></i>
+          </div>
+          <h1 class="text-xl font-black italic tracking-tighter">
+            SCRAPE<span class="text-indigo-500">FLOW</span>
+          </h1>
+        </div>
+
+        <nav class="space-y-2">
+          <button
+            onclick="switchTab('targets')"
+            class="nav-link flex w-full items-center gap-3 rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white shadow-lg shadow-indigo-600/20"
+            id="nav-targets"
+          >
+            <i class="fas fa-bullseye w-5"></i> Targets
+          </button>
+          <button
+            onclick="switchTab('results')"
+            class="nav-link flex w-full items-center gap-3 rounded-xl px-4 py-3 text-slate-400 transition hover:bg-slate-800/50"
+            id="nav-results"
+          >
+            <i class="fas fa-database w-5"></i> Finished Results
+          </button>
+          <button
+            onclick="switchTab('active-runs')"
+            class="nav-link flex w-full items-center gap-3 rounded-xl px-4 py-3 text-slate-400 transition hover:bg-slate-800/50"
+            id="nav-runs"
+          >
+            <i class="fas fa-satellite-dish w-5"></i> Live Stream
+          </button>
+          <button
+            onclick="switchTab('schedules')"
+            class="nav-link flex w-full items-center gap-3 rounded-xl px-4 py-3 text-slate-400 transition hover:bg-slate-800/50"
+            id="nav-schedules"
+          >
+            <i class="fas fa-calendar-alt w-5"></i> Schedules
+          </button>
+        </nav>
+      </div>
+
+      <div class="mt-auto space-y-4 border-t border-slate-900 p-6">
+        <div
+          class="rounded-2xl border border-indigo-500/20 bg-indigo-950/30 p-4"
+        >
+          <p class="mb-1 text-[10px] font-black uppercase text-indigo-400">
+            Current Task
+          </p>
+          <p class="truncate text-xs font-bold">mmsbaba.com</p>
+          <div
+            class="mt-2 h-1 w-full overflow-hidden rounded-full bg-slate-800"
+          >
+            <div class="h-full w-2/3 animate-pulse bg-indigo-500"></div>
+          </div>
+        </div>
+        <button
+          onclick="toggleModal('importModal', true)"
+          class="w-full rounded-xl border border-slate-800 bg-slate-900 py-3 text-xs font-bold text-slate-300 transition hover:bg-slate-800"
+        >
+          <i class="fas fa-file-import mr-2"></i> IMPORT CONFIG
+        </button>
+      </div>
+    </aside>
+
+    <main class="relative flex flex-1 flex-col overflow-hidden">
+      <!-- Header -->
+      <header
+        class="glass-card flex h-20 items-center justify-between border-b border-slate-900 px-8"
+      >
+        <div class="flex items-center gap-6">
+          <h2 id="pageTitle" class="text-xl font-bold">Targets Manager</h2>
+          <div class="h-6 w-px bg-slate-800"></div>
+          <div class="flex gap-3">
+            <button
+              onclick="runAllTargets()"
+              class="rounded-full bg-emerald-600 px-5 py-2 text-xs font-black text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-500"
+            >
+              <i class="fas fa-play mr-2"></i> RUN ALL TARGETS
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <button
+            onclick="toggleModal('targetModal', true)"
+            class="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500"
+          >
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+      </header>
+
+      <div class="custom-scrollbar flex-1 overflow-y-auto p-8">
+        <!-- TAB: TARGETS -->
+        <div id="targets" class="tab-content active space-y-6">
+          <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <!-- Target Card -->
+            <div
+              class="glass-card rounded-[2rem] border-l-8 border-indigo-600 p-6"
+            >
+              <div class="mb-6 flex items-start justify-between">
+                <div>
+                  <h3 class="text-xl font-bold text-white">mmsbaba.com</h3>
+                  <p class="mt-1 text-xs text-slate-500">
+                    Status: <span class="text-emerald-400">Ready</span> •
+                    Selenium: <span class="text-rose-400">Disabled</span>
+                  </p>
+                </div>
+                <div class="flex gap-2">
+                  <button
+                    class="rounded-2xl bg-slate-900 p-3 transition hover:bg-slate-800"
+                  >
+                    <i class="fas fa-edit text-slate-400"></i>
+                  </button>
+                  <button
+                    class="rounded-2xl bg-emerald-600/10 px-6 py-3 text-xs font-bold text-emerald-400 transition hover:bg-emerald-600 hover:text-white"
+                  >
+                    START SCRAPE
+                  </button>
+                </div>
+              </div>
+              <div class="grid grid-cols-3 gap-4">
+                <div
+                  class="rounded-2xl border border-slate-800 bg-black/30 p-3"
+                >
+                  <p
+                    class="mb-1 text-[10px] font-bold uppercase text-slate-500"
+                  >
+                    Page Limit
+                  </p>
+                  <p class="text-lg font-black text-slate-300">296</p>
+                </div>
+                <div
+                  class="rounded-2xl border border-slate-800 bg-black/30 p-3"
+                >
+                  <p
+                    class="mb-1 text-[10px] font-bold uppercase text-slate-500"
+                  >
+                    Schedules
+                  </p>
+                  <p class="text-lg font-black text-indigo-400">01</p>
+                </div>
+                <div
+                  class="rounded-2xl border border-slate-800 bg-black/30 p-3"
+                >
+                  <p
+                    class="mb-1 text-[10px] font-bold uppercase text-slate-500"
+                  >
+                    Total Posts
+                  </p>
+                  <p class="text-lg font-black text-emerald-400">1.2K</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: RESULTS (TARGET BASED) -->
+        <div id="results" class="tab-content space-y-8">
+          <div
+            class="flex flex-col justify-between gap-6 md:flex-row md:items-center"
+          >
+            <div class="flex items-center gap-4">
+              <select
+                onchange="filterResultsByTarget(this.value)"
+                class="min-w-[240px] rounded-2xl border border-slate-800 bg-slate-900 px-6 py-3 text-sm focus:border-indigo-500 focus:outline-none"
+              >
+                <option value="mmsbaba">mmsbaba.com (Latest Run)</option>
+                <option value="bangla">
+                  banglachotikahinii.com (Finished 2h ago)
+                </option>
+                <option value="archive">Archive: mmsbaba (2025-12-25)</option>
+              </select>
+              <div class="text-xs font-bold text-slate-500">
+                <i class="fas fa-info-circle mr-1"></i> Showing 40 results
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button
+                class="rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-xs transition hover:bg-slate-800"
+              >
+                Download CSV
+              </button>
+              <button
+                class="rounded-xl border border-rose-600/20 bg-rose-600/10 px-4 py-2 text-xs text-rose-500 transition hover:bg-rose-600 hover:text-white"
+              >
+                Delete All
+              </button>
+            </div>
+          </div>
+
+          <!-- POST CARDS GRID -->
+          <div
+            class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+          >
+            <!-- Post Card -->
+            <div
+              class="glass-card post-card group overflow-hidden rounded-3xl border border-slate-800 transition-all duration-300 hover:border-indigo-500/50"
+            >
+              <div class="relative h-48 overflow-hidden bg-slate-950">
+                <img
+                  src="https://via.placeholder.com/400x225/1e293b/cbd5e1?text=Post+Thumbnail"
+                  alt="post"
+                  class="h-full w-full object-cover transition duration-500 group-hover:scale-110"
+                />
+                <div
+                  class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"
+                ></div>
+                <div class="absolute bottom-4 left-4 right-4">
+                  <span
+                    class="mb-2 inline-block rounded bg-indigo-600 px-2 py-1 text-[10px] font-black"
+                    >MMSBABA</span
+                  >
+                  <h4 class="line-clamp-1 text-sm font-bold text-white">
+                    হোটেল রুমে ট্রাক ড্রাইভারের সাথে ভারতীয় গ্রামের স্ত্রীর
+                    রোমান্টিক
+                  </h4>
+                </div>
+                <div
+                  class="post-actions absolute right-4 top-4 flex flex-col gap-2 opacity-0 transition duration-300"
+                >
+                  <button
+                    class="h-8 w-8 rounded-lg bg-white/10 text-white backdrop-blur-md transition hover:bg-indigo-600"
+                  >
+                    <i class="fas fa-edit text-xs"></i>
+                  </button>
+                  <button
+                    class="h-8 w-8 rounded-lg bg-white/10 text-white backdrop-blur-md transition hover:bg-rose-600"
+                  >
+                    <i class="fas fa-trash text-xs"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="space-y-3 p-5">
+                <p class="line-clamp-2 text-xs italic text-slate-400">
+                  স্বামীর লম্পট ড্রাইভারের সাথে রোমান্টিক।
+                </p>
+                <div class="flex flex-wrap gap-1">
+                  <span
+                    class="rounded-full bg-slate-800 px-2 py-0.5 text-[9px] text-slate-400"
+                    >Boudi Sex</span
+                  >
+                  <span
+                    class="rounded-full bg-slate-800 px-2 py-0.5 text-[9px] text-slate-400"
+                    >Bangla MMS</span
+                  >
+                </div>
+                <div
+                  class="flex items-center justify-between border-t border-slate-800 pt-3 font-mono text-[10px]"
+                >
+                  <span class="text-slate-500">2025-12-27</span>
+                  <a href="#" class="text-indigo-400 hover:underline"
+                    >View Source <i class="fas fa-external-link-alt ml-1"></i
+                  ></a>
+                </div>
+              </div>
+            </div>
+            <!-- Repeat Card for Demo -->
+          </div>
+        </div>
+
+        <!-- TAB: SCHEDULES -->
+        <div id="schedules" class="tab-content space-y-6">
+          <div class="mb-8 flex items-center justify-between">
+            <h3 class="text-xl font-bold">Automation Queue</h3>
+          </div>
+
+          <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div
+              class="glass-card group relative rounded-3xl border border-slate-800 p-6"
+            >
+              <div class="mb-6 flex items-start justify-between">
+                <div
+                  class="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600/10 text-indigo-500"
+                >
+                  <i class="fas fa-clock text-xl"></i>
+                </div>
+                <div class="text-right">
+                  <span
+                    class="rounded bg-emerald-500/10 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-500"
+                    >Enabled</span
+                  >
+                </div>
+              </div>
+              <h4 class="text-lg font-bold">mmsbaba.com</h4>
+              <div
+                class="mt-4 space-y-3 rounded-2xl border border-slate-900 bg-slate-950 p-4"
+              >
+                <div class="flex justify-between text-xs">
+                  <span class="text-slate-500">Frequency</span>
+                  <span class="font-bold text-indigo-400"
+                    >Every 30 Minutes</span
+                  >
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-slate-500">Last Run</span>
+                  <span class="text-slate-300">12 mins ago</span>
+                </div>
+              </div>
+              <div class="mt-6 flex gap-2">
+                <button
+                  class="flex-1 rounded-xl bg-slate-800 py-3 text-xs font-bold transition hover:bg-slate-700"
+                >
+                  EDIT
+                </button>
+                <button
+                  class="rounded-xl bg-rose-600/10 p-3 text-rose-500 transition hover:bg-rose-600 hover:text-white"
+                >
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: LIVE STREAM (ACTIVE RUNS) -->
+        <div id="active-runs" class="tab-content space-y-6">
+          <!-- User's provided running JSON data as live progress card -->
+          <div
+            class="glass-card relative overflow-hidden rounded-[2.5rem] border-t-8 border-indigo-500 p-10"
+          >
+            <div
+              class="pointer-events-none absolute right-0 top-0 p-10 opacity-5"
+            >
+              <i class="fas fa-satellite-dish text-[150px]"></i>
+            </div>
+            <div class="grid grid-cols-1 gap-12 lg:grid-cols-4">
+              <div class="space-y-10 lg:col-span-3">
+                <div
+                  class="flex flex-col justify-between gap-6 md:flex-row md:items-center"
+                >
+                  <div>
+                    <h3 class="text-3xl font-black italic text-white">
+                      mmsbaba.com
+                    </h3>
+                    <div class="mt-2 flex items-center gap-3">
+                      <span
+                        class="font-mono text-xs tracking-tighter text-slate-500"
+                        >RUN_ID: a4b59a96205547ac9e7005d28ae89426</span
+                      >
+                      <span
+                        class="h-1.5 w-1.5 animate-ping rounded-full bg-emerald-500"
+                      ></span>
+                      <span
+                        class="text-[10px] font-black uppercase text-emerald-500"
+                        >Scraping Now</span
+                      >
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-4xl font-black text-indigo-500">65%</div>
+                    <div
+                      class="text-[10px] font-bold uppercase tracking-widest text-slate-500"
+                    >
+                      Global Progress
+                    </div>
+                  </div>
+                </div>
+
+                <div class="space-y-4">
+                  <div
+                    class="h-3 w-full overflow-hidden rounded-full border border-slate-800 bg-slate-900"
+                  >
+                    <div
+                      class="h-full w-[65%] rounded-full bg-gradient-to-r from-indigo-600 to-blue-500 shadow-[0_0_20px_rgba(79,70,229,0.5)]"
+                    ></div>
+                  </div>
+                  <div
+                    class="flex justify-between text-[10px] font-bold uppercase text-slate-500"
+                  >
+                    <span>Page 195 of 296</span>
+                    <span>Phase: Extracting Details</span>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6 md:grid-cols-4">
+                  <div
+                    class="group rounded-3xl border border-slate-900 bg-slate-950/50 p-6 transition hover:border-indigo-500/30"
+                  >
+                    <p
+                      class="mb-2 text-[10px] font-black uppercase text-slate-500"
+                    >
+                      Processed
+                    </p>
+                    <p class="text-2xl font-black text-white">53</p>
+                  </div>
+                  <div
+                    class="rounded-3xl border border-slate-900 bg-slate-950/50 p-6"
+                  >
+                    <p
+                      class="mb-2 text-[10px] font-black uppercase text-slate-500"
+                    >
+                      New Items
+                    </p>
+                    <p class="text-2xl font-black text-emerald-400">30</p>
+                  </div>
+                  <div
+                    class="rounded-3xl border border-slate-900 bg-slate-950/50 p-6"
+                  >
+                    <p
+                      class="mb-2 text-[10px] font-black uppercase text-slate-500"
+                    >
+                      Skipped
+                    </p>
+                    <p class="text-2xl font-black text-amber-500">0</p>
+                  </div>
+                  <div
+                    class="rounded-3xl border border-slate-900 bg-slate-950/50 p-6"
+                  >
+                    <p
+                      class="mb-2 text-[10px] font-black uppercase text-slate-500"
+                    >
+                      Data Load
+                    </p>
+                    <p class="text-2xl font-black text-white">
+                      75.5 <span class="text-xs text-slate-500">KB</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  class="truncate rounded-2xl border border-slate-800 bg-slate-900/40 p-4 font-mono text-xs text-indigo-400"
+                >
+                  <span class="mr-2 text-slate-500">➜</span>
+                  https://mmsbaba.com/page/195/
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-4">
+                <div
+                  class="flex flex-1 flex-col items-center justify-center rounded-[2rem] border border-rose-600/10 bg-rose-600/5 p-6 text-center"
+                >
+                  <div
+                    class="mb-4 flex h-16 w-16 cursor-pointer items-center justify-center rounded-full bg-rose-600 text-white shadow-xl shadow-rose-600/30 transition hover:scale-105"
+                  >
+                    <i class="fas fa-stop text-xl"></i>
+                  </div>
+                  <p class="text-sm font-bold text-rose-500">STOP SCRAPER</p>
+                  <p
+                    class="mt-2 px-4 text-[10px] italic leading-relaxed text-slate-500"
+                  >
+                    Emergency halt will stop all active threads immediately.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- MODAL: ADD/EDIT TARGET -->
+    <div
+      id="targetModal"
+      class="modal-overlay fixed inset-0 z-[100] flex hidden items-center justify-center p-4"
+    >
+      <div
+        class="glass-card w-full max-w-4xl overflow-hidden rounded-[3rem] border-slate-800 shadow-2xl"
+      >
+        <div class="space-y-10 p-10 lg:p-14">
+          <div class="flex items-start justify-between">
+            <div>
+              <h3 class="text-3xl font-black">Configure Target</h3>
+              <p class="mt-2 text-sm text-slate-500">
+                Add a new domain and extraction rules.
+              </p>
+            </div>
+            <button
+              onclick="toggleModal('targetModal', false)"
+              class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-slate-400 transition hover:text-white"
+            >
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 gap-8 md:grid-cols-3">
+            <div class="space-y-6 md:col-span-2">
+              <div class="space-y-2">
+                <label
+                  class="text-[10px] font-black uppercase tracking-widest text-slate-500"
+                  >Base URL</label
+                >
+                <input
+                  type="text"
+                  placeholder="https://..."
+                  class="w-full rounded-2xl border border-slate-800 bg-black px-6 py-4 font-medium transition focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+              <div class="grid grid-cols-2 gap-6">
+                <div class="space-y-2">
+                  <label
+                    class="text-[10px] font-black uppercase tracking-widest text-slate-500"
+                    >Target Name</label
+                  >
+                  <input
+                    type="text"
+                    placeholder="e.g. MMS Baba"
+                    class="w-full rounded-2xl border border-slate-800 bg-black px-6 py-4 transition focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div class="space-y-2">
+                  <label
+                    class="text-[10px] font-black uppercase tracking-widest text-slate-500"
+                    >Schedule Every...</label
+                  >
+                  <select
+                    class="w-full cursor-pointer appearance-none rounded-2xl border border-slate-800 bg-black px-6 py-4 focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="none">No Schedule</option>
+                    <option value="15m">15 Minutes</option>
+                    <option value="30m">30 Minutes</option>
+                    <option value="1h">1 Hour</option>
+                    <option value="2h">2 Hours</option>
+                    <option value="6h">6 Hours</option>
+                    <option value="12h">12 Hours</option>
+                    <option value="24h">24 Hours</option>
+                  </select>
+                </div>
+              </div>
+              <div class="space-y-4 pt-4">
+                <label
+                  class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-500"
+                >
+                  Advanced Selectors (JSON)
+                  <span class="font-mono text-[9px] text-indigo-400"
+                    >Validation: Pass</span
+                  >
+                </label>
+                <textarea
+                  class="json-editor custom-scrollbar h-48 w-full rounded-3xl p-6 text-xs focus:outline-none"
+                  spellcheck="false"
+                >
+{
+  "pagination": { "pageN": "/page/(page)/" },
+  "listing": {
+    "entry": "div.videos a.video",
+    "fields": [ { "name": "title", "source": "a.title" } ]
+  }
+}</textarea
+                >
+              </div>
+            </div>
+
+            <div class="space-y-6">
+              <div
+                class="space-y-6 rounded-[2rem] border border-slate-800 bg-slate-900/50 p-6"
+              >
+                <h4
+                  class="mb-4 text-xs font-black uppercase tracking-tighter text-slate-500"
+                >
+                  Behavior Toggles
+                </h4>
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold">Use Selenium</span>
+                  <input
+                    type="checkbox"
+                    class="checked:after:left-5.5 relative h-5 w-10 cursor-pointer appearance-none rounded-full bg-slate-800 transition-all after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:content-[''] checked:bg-indigo-600"
+                  />
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold">Auto Publish</span>
+                  <input
+                    type="checkbox"
+                    checked
+                    class="checked:after:left-5.5 relative h-5 w-10 cursor-pointer appearance-none rounded-full bg-slate-800 transition-all after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:content-[''] checked:bg-indigo-600"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-4 border-t border-slate-900 pt-4">
+            <button
+              onclick="toggleModal('targetModal', false)"
+              class="flex-1 rounded-2xl bg-slate-900 py-5 text-xs font-black uppercase tracking-widest transition hover:bg-slate-800"
+            >
+              Cancel
+            </button>
+            <button
+              class="flex-1 rounded-2xl bg-indigo-600 py-5 text-xs font-black uppercase tracking-widest shadow-2xl shadow-indigo-600/30 transition hover:bg-indigo-500"
+            >
+              Save Target Config
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: IMPORT -->
+    <div
+      id="importModal"
+      class="modal-overlay fixed inset-0 z-[100] flex hidden items-center justify-center p-4"
+    >
+      <div
+        class="glass-card w-full max-w-lg overflow-hidden rounded-[2.5rem] border-slate-800"
+      >
+        <div class="space-y-8 p-10">
+          <div class="text-center">
+            <i class="fas fa-file-import mb-4 text-3xl text-indigo-500"></i>
+            <h3 class="text-2xl font-bold">Import Configuration</h3>
+          </div>
+          <textarea
+            class="json-editor h-48 w-full rounded-2xl p-6 text-xs focus:outline-none"
+            placeholder="Paste your preset JSON here..."
+          ></textarea>
+          <button
+            class="w-full rounded-2xl bg-indigo-600 py-4 text-xs font-bold uppercase shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500"
+          >
+            Apply Configuration
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function switchTab(tabId) {
+        document
+          .querySelectorAll('.tab-content')
+          .forEach((c) => c.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+
+        document.querySelectorAll('.nav-link').forEach((l) => {
+          l.classList.remove(
+            'bg-indigo-600',
+            'text-white',
+            'shadow-lg',
+            'shadow-indigo-600/20',
+          );
+          l.classList.add('text-slate-400');
+        });
+
+        const navMap = {
+          targets: 'nav-targets',
+          results: 'nav-results',
+          'active-runs': 'nav-runs',
+          schedules: 'nav-schedules',
+        };
+        const activeNav = document.getElementById(navMap[tabId]);
+        activeNav.classList.remove('text-slate-400');
+        activeNav.classList.add(
+          'bg-indigo-600',
+          'text-white',
+          'shadow-lg',
+          'shadow-indigo-600/20',
+        );
+
+        const titles = {
+          targets: 'Targets Manager',
+          results: 'Scraped Results Explorer',
+          'active-runs': 'Live Engine Stream',
+          schedules: 'Automation Queue',
+        };
+        document.getElementById('pageTitle').innerText = titles[tabId];
+      }
+
+      function toggleModal(modalId, show) {
+        document.getElementById(modalId).classList.toggle('hidden', !show);
+      }
+
+      function runAllTargets() {
+        // Mock trigger for global run
+        const btn = event.currentTarget;
+        btn.innerHTML =
+          '<i class="fas fa-circle-notch fa-spin mr-2"></i> STARTING ALL...';
+        setTimeout(() => {
+          switchTab('active-runs');
+          btn.innerHTML = '<i class="fas fa-play mr-2"></i> RUN ALL TARGETS';
+        }, 1000);
+      }
+
+      function filterResultsByTarget(target) {
+        console.log('Filtering results for:', target);
+        // logic to re-fetch/filter the cards
+      }
+
+      // Outside click to close modals
+      window.onclick = function (event) {
+        if (event.target.classList.contains('modal-overlay')) {
+          event.target.classList.add('hidden');
+        }
+      };
+    </script>
+  </body>
+</html>

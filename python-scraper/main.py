@@ -16,6 +16,15 @@ OUTPUT_DIR = os.path.dirname(__file__)
 USE_SELENIUM = os.environ.get('USE_SELENIUM', '0') == '1'
 PAGE1_PATH = os.environ.get('PAGE1_PATH', '/')
 PAGEN_TEMPLATE = os.environ.get('PAGEN_TEMPLATE', '/page/{page}/')
+PAGINATION_MODE = (os.environ.get('PAGINATION_MODE') or '').strip().lower()
+AJAX_PAGINATION_SELECTOR = os.environ.get(
+    'AJAX_PAGINATION_SELECTOR',
+    'a[data-action="ajax"][data-block-id][data-parameters]',
+)
+AJAX_PAGINATION_NEXT_SELECTOR = os.environ.get(
+    'AJAX_PAGINATION_NEXT_SELECTOR',
+    'a.next[data-action="ajax"][data-block-id][data-parameters]',
+)
 LIST_ENTRY_SELECTOR = os.environ.get('LIST_ENTRY_SELECTOR', 'div.videos a.video')
 LIST_TITLE_SELECTOR = os.environ.get('LIST_TITLE_SELECTOR', 'h2.vtitle')
 DETAILS_VIDEO_SELECTOR = os.environ.get(
@@ -85,6 +94,65 @@ def build_page_url(page):
     path = tmpl.replace('{page}', str(int(page)))
     return base + path
 
+def parse_kvs_data_parameters(s):
+    raw = str(s or '').strip()
+    if not raw:
+        return {}
+    raw = raw.strip('`').strip()
+    if (raw.startswith('"') and raw.endswith('"')) or (raw.startswith("'") and raw.endswith("'")):
+        raw = raw[1:-1].strip()
+    out = {}
+    for part in raw.split(';'):
+        part = part.strip()
+        if not part:
+            continue
+        if ':' not in part:
+            continue
+        k, v = part.split(':', 1)
+        k = str(k or '').strip()
+        v = str(v or '').strip()
+        if not k:
+            continue
+        out[k] = v
+    return out
+
+def build_kvs_ajax_url(listing_page_url, block_id, data_parameters):
+    from urllib.parse import urlencode
+
+    if not listing_page_url:
+        return None
+    block = str(block_id or '').strip()
+    if not block:
+        return None
+    qp = {'mode': 'async', 'function': 'get_block', 'block_id': block}
+    qp.update(parse_kvs_data_parameters(data_parameters))
+    base = str(listing_page_url).split('#', 1)[0]
+    if '?' in base:
+        base = base.split('?', 1)[0]
+    return f'{base}?{urlencode(qp, doseq=True)}'
+
+def extract_kvs_ajax_next(html):
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html or '', 'lxml')
+    a = soup.select_one(AJAX_PAGINATION_NEXT_SELECTOR) if AJAX_PAGINATION_NEXT_SELECTOR else None
+    if not a and AJAX_PAGINATION_SELECTOR:
+        candidates = soup.select(AJAX_PAGINATION_SELECTOR) or []
+        for c in candidates:
+            cls = c.get('class') or []
+            if isinstance(cls, str):
+                cls = [cls]
+            if 'next' in cls:
+                a = c
+                break
+    if not a:
+        return None
+    block_id = a.get('data-block-id') or ''
+    params = a.get('data-parameters') or ''
+    if not block_id or not params:
+        return None
+    return {'block_id': block_id, 'data_parameters': params}
+
 def make_scraper():
     import importlib
     cloudscraper = importlib.import_module('cloudscraper')
@@ -120,19 +188,74 @@ def fetch_html_selenium(url, wait_css=None):
         ssl._create_default_https_context = lambda: ssl.create_default_context(cafile=certifi.where())
     except Exception:
         pass
-    uc = importlib.import_module('undetected_chromedriver')
     By = importlib.import_module('selenium.webdriver.common.by').By
     WebDriverWait = importlib.import_module('selenium.webdriver.support.ui').WebDriverWait
 
-    options = uc.ChromeOptions()
-    options.add_argument('--headless=new')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--disable-blink-features=AutomationControlled')
-    options.add_argument('--ignore-certificate-errors')
+    def resolve_first_existing(paths):
+        for p in paths:
+            try:
+                if p and os.path.exists(p):
+                    return p
+            except Exception:
+                continue
+        return None
 
-    driver = uc.Chrome(options=options)
+    chrome_bin = resolve_first_existing(
+        [
+            os.environ.get('CHROME_BIN'),
+            '/usr/bin/chromium',
+            '/usr/bin/chromium-browser',
+            '/usr/bin/google-chrome',
+            '/usr/bin/google-chrome-stable',
+        ]
+    )
+    chromedriver_bin = resolve_first_existing(
+        [
+            os.environ.get('CHROMEDRIVER_BIN'),
+            '/usr/bin/chromedriver',
+            '/usr/local/bin/chromedriver',
+            '/usr/lib/chromium/chromedriver',
+        ]
+    )
+
+    driver = None
+    try:
+        webdriver = importlib.import_module('selenium.webdriver')
+        ChromeOptions = importlib.import_module('selenium.webdriver.chrome.options').Options
+        Service = importlib.import_module('selenium.webdriver.chrome.service').Service
+
+        options = ChromeOptions()
+        if chrome_bin:
+            try:
+                options.binary_location = chrome_bin
+            except Exception:
+                pass
+        options.add_argument('--headless=new')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-gpu')
+        options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_argument('--ignore-certificate-errors')
+        options.add_argument('--window-size=1920,1080')
+
+        service = Service(executable_path=chromedriver_bin) if chromedriver_bin else Service()
+        driver = webdriver.Chrome(service=service, options=options)
+    except Exception:
+        uc = importlib.import_module('undetected_chromedriver')
+        options = uc.ChromeOptions()
+        options.add_argument('--headless=new')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-gpu')
+        options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_argument('--ignore-certificate-errors')
+        options.add_argument('--window-size=1920,1080')
+        if chrome_bin:
+            try:
+                options.binary_location = chrome_bin
+            except Exception:
+                pass
+        driver = uc.Chrome(options=options)
     try:
         driver.get(url)
         if wait_css:
@@ -150,9 +273,16 @@ def fetch_html_selenium(url, wait_css=None):
         except Exception:
             pass
 
-def fetch_html(scraper, url, referer=None, wait_css=None):
+def fetch_html(scraper, url, referer=None, wait_css=None, *, allow_blocked_html=False):
     last_html = None
     last_status = None
+    if USE_SELENIUM and url:
+        try:
+            html = fetch_html_selenium(url, wait_css=wait_css or SELENIUM_WAIT_SELECTOR or None)
+            if html:
+                return html
+        except Exception:
+            pass
     for attempt in range(1, 4):
         try:
             headers = {}
@@ -168,12 +298,28 @@ def fetch_html(scraper, url, referer=None, wait_css=None):
         except Exception:
             pass
         delay(800 * attempt + 1200)
-    if USE_SELENIUM and url:
-        html = fetch_html_selenium(url, wait_css=wait_css or SELENIUM_WAIT_SELECTOR or None)
-        if html:
-            return html
-    if last_html and last_status == 200 and not looks_like_blocked_html(last_html):
-        return last_html
+    auto_selenium = str(os.environ.get('AUTO_SELENIUM_FALLBACK', '') or '').strip().lower()
+    if url and not USE_SELENIUM:
+        enable_auto = False
+        if auto_selenium in ('1', 'true', 'yes', 'on'):
+            enable_auto = True
+        elif auto_selenium in ('0', 'false', 'no', 'off'):
+            enable_auto = False
+        else:
+            enable_auto = os.path.exists('/.dockerenv')
+        if enable_auto:
+            try:
+                html = fetch_html_selenium(url, wait_css=wait_css or SELENIUM_WAIT_SELECTOR or None)
+                if html:
+                    return html
+            except Exception:
+                pass
+    if last_html and last_status == 200:
+        if allow_blocked_html:
+            return last_html
+        if not looks_like_blocked_html(last_html):
+            return last_html
+        return None
     return None
 
 def save_debug_html(url, html):
@@ -203,15 +349,30 @@ def parse_listing(html):
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(html, 'lxml')
     items = []
-    for a in soup.select(LIST_ENTRY_SELECTOR):
+    for el in soup.select(LIST_ENTRY_SELECTOR):
+        a = el if getattr(el, 'name', '') == 'a' else (el.select_one('a[href]') if el else None)
+        if not a:
+            continue
         href = a.get('href')
         style = a.get('style') or ''
         m = re.search(r"background-image:\s*url\(['\"]?(.*?)['\"]?\)", style, flags=re.I)
         image_url = m.group(1) if m else None
         title_attr = a.get('title') or ''
-        h2 = a.select_one(LIST_TITLE_SELECTOR) if LIST_TITLE_SELECTOR else None
-        title_text = h2.get_text(strip=True) if h2 else ''
+        title_node = None
+        if LIST_TITLE_SELECTOR:
+            try:
+                title_node = el.select_one(LIST_TITLE_SELECTOR) or a.select_one(LIST_TITLE_SELECTOR)
+            except Exception:
+                title_node = None
+        title_text = title_node.get_text(strip=True) if title_node else ''
         title = clean_text(title_attr or title_text or '')
+        if not image_url:
+            try:
+                img = el.select_one('img') or a.select_one('img')
+                if img:
+                    image_url = img.get('src') or img.get('data-src') or img.get('data-original')
+            except Exception:
+                pass
         link = None
         if href:
             if href.startswith('http'):
@@ -243,16 +404,20 @@ def normalize_media_url(src):
         scheme = (urlparse(BASE_URL).scheme or 'https').strip(':')
         return f'{scheme}:{s}'
     if s.startswith('http://') or s.startswith('https://'):
-        return s
-    return urljoin(BASE_URL, s)
+        out = s
+    else:
+        out = urljoin(BASE_URL, s)
+    if out.lower().endswith(('.mp4/', '.mov/', '.m3u8/')):
+        out = out[:-1]
+    return out
 
 def first_media_url_from_text(html):
     t = html or ''
     if not t:
         return None
     pats = [
-        r'(https?://[^\s"\'<>]+?\.(?:mp4|mov|m3u8)(?:\?[^\s"\'<>]*)?)',
-        r'(//[^\s"\'<>]+?\.(?:mp4|mov|m3u8)(?:\?[^\s"\'<>]*)?)',
+        r'(https?://[^\s"\'<>]+?\.(?:mp4|mov|m3u8)(?:/)?(?:\?[^\s"\'<>]*)?)',
+        r'(//[^\s"\'<>]+?\.(?:mp4|mov|m3u8)(?:/)?(?:\?[^\s"\'<>]*)?)',
     ]
     for pat in pats:
         m = re.search(pat, t, flags=re.I)
@@ -260,36 +425,90 @@ def first_media_url_from_text(html):
             return normalize_media_url(m.group(1))
     return None
 
+def media_urls_from_text(html, *, limit=80):
+    t = html or ''
+    if not t:
+        return []
+    pats = [
+        r'(https?://[^\s"\'<>]+?\.(?:mp4|mov|m3u8)(?:/)?(?:\?[^\s"\'<>]*)?)',
+        r'(//[^\s"\'<>]+?\.(?:mp4|mov|m3u8)(?:/)?(?:\?[^\s"\'<>]*)?)',
+    ]
+    out = []
+    seen = set()
+    for pat in pats:
+        for m in re.finditer(pat, t, flags=re.I):
+            u = normalize_media_url(m.group(1))
+            if not u or u in seen:
+                continue
+            seen.add(u)
+            out.append(u)
+            if len(out) >= limit:
+                return out
+    return out
+
 def extract_video_url_from_soup(soup, html=None):
-    candidates = []
+    candidates = {}
+
+    def score_media_url(u):
+        s = str(u or '').strip().lower()
+        if not s:
+            return -10_000
+        score = 0
+        if '/get_file/' in s:
+            score += 250
+            m = re.search(r'/get_file/(\d+)/', s)
+            if m:
+                try:
+                    score += max(0, min(9, int(m.group(1)))) * 20
+                except Exception:
+                    pass
+        if '.m3u8' in s:
+            score += 40
+        if '.mp4' in s:
+            score += 25
+        if 'preview.mp4' in s:
+            score -= 300
+        if 'videos_screenshots' in s or 'screenshots' in s:
+            score -= 250
+        if '/preview' in s:
+            score -= 120
+        if 'thumb' in s or 'sprite' in s or 'poster' in s:
+            score -= 120
+        if 'preview' in s:
+            score -= 60
+        return score
 
     def consider(val):
         u = normalize_media_url(val)
         if not u:
             return
-        if u not in candidates:
-            candidates.append(u)
+        prev = candidates.get(u)
+        sc = score_media_url(u)
+        if prev is None or sc > prev:
+            candidates[u] = sc
 
     try:
         if DETAILS_VIDEO_SELECTOR:
             v = soup.select_one(DETAILS_VIDEO_SELECTOR)
             if v:
-                consider(
+                primary_src = (
                     v.get('src')
                     or v.get('data-src')
                     or v.get('data-lazy-src')
                     or v.get('data-original')
                     or v.get('data-url')
                 )
+                primary_norm = normalize_media_url(primary_src)
+                if primary_norm and '/get_file/' in primary_norm.lower():
+                    return primary_norm
+                consider(primary_src)
                 for s in v.select('source'):
                     consider(s.get('src') or s.get('data-src') or s.get('data-lazy-src'))
     except Exception:
         pass
 
     for v in soup.select('video'):
-        if candidates:
-            break
-        consider(
+        v_src = (
             v.get('src')
             or v.get('data-src')
             or v.get('data-lazy-src')
@@ -298,10 +517,12 @@ def extract_video_url_from_soup(soup, html=None):
             or v.get('data-mp4')
             or v.get('data-video')
         )
+        v_norm = normalize_media_url(v_src)
+        if v_norm and '/get_file/' in v_norm.lower():
+            return v_norm
+        consider(v_src)
         for s in v.select('source'):
             consider(s.get('src') or s.get('data-src') or s.get('data-lazy-src'))
-            if candidates:
-                break
 
     if not candidates:
         try:
@@ -334,8 +555,15 @@ def extract_video_url_from_soup(soup, html=None):
         except Exception:
             pass
 
+    try:
+        for u in media_urls_from_text(html or ''):
+            consider(u)
+    except Exception:
+        pass
+
     if candidates:
-        return candidates[0]
+        best = sorted(candidates.items(), key=lambda kv: (kv[1], len(kv[0])), reverse=True)[0][0]
+        return best
     return first_media_url_from_text(html or '')
 
 def extract_tags_texts_from_soup(soup):
@@ -464,6 +692,8 @@ def scrape():
     existing = read_existing()
     existing_posts = existing.get('posts') or []
     existing_tags = existing.get('tags') or []
+    page_order = str(os.environ.get('SCRAPE_PAGE_ORDER') or '').strip().lower()
+    is_desc = page_order in ('desc', 'reverse', 'last-to-first', 'last_to_first')
     base_host = urlparse(BASE_URL).netloc.lower()
     if base_host.startswith('www.'):
         base_host = base_host[4:]
@@ -515,7 +745,16 @@ def scrape():
                     start_page = last_page
         except Exception:
             pass
-    pages_processed = max(0, start_page - 1)
+    if is_desc and start_page == 1 and not start_page_env.isdigit():
+        start_page = int(PAGE_LIMIT)
+    pages_processed = max(0, (int(PAGE_LIMIT) - start_page) if is_desc else (start_page - 1))
+    auto_selenium_on_empty = str(os.environ.get('AUTO_SELENIUM_ON_EMPTY', '') or '').strip().lower()
+    if auto_selenium_on_empty in ('1', 'true', 'yes', 'on'):
+        enable_auto_selenium_on_empty = True
+    elif auto_selenium_on_empty in ('0', 'false', 'no', 'off'):
+        enable_auto_selenium_on_empty = False
+    else:
+        enable_auto_selenium_on_empty = os.path.exists('/.dockerenv')
     write_external_progress(
         {
             'running': True,
@@ -527,17 +766,22 @@ def scrape():
             'postsFound': 0,
         }
     )
-    for page in range(start_page, PAGE_LIMIT + 1):
-        if MAX_POSTS > 0 and len(new_results) >= MAX_POSTS:
-            break
+    def process_listing_html(page, page_url, html):
+        nonlocal pages_processed
         page_posts_processed = 0
-        page_url = build_page_url(page)
-        html = fetch_html(scraper, page_url, BASE_URL, wait_css=LIST_ENTRY_SELECTOR or None)
-        save_debug_html(page_url, html)
-        if not html:
-            continue
-        pages_processed += 1
         items = parse_listing(html)
+        if not items and enable_auto_selenium_on_empty:
+            try:
+                html2 = fetch_html_selenium(
+                    page_url,
+                    wait_css=LIST_ENTRY_SELECTOR or SELENIUM_WAIT_SELECTOR or None,
+                )
+                if html2:
+                    save_debug_html(page_url, html2)
+                    html = html2
+                    items = parse_listing(html)
+            except Exception:
+                pass
         filtered = [i for i in items if i['link'] not in existing_links]
         skipped_existing = max(0, len(items) - len(filtered))
         write_external_progress(
@@ -626,6 +870,63 @@ def scrape():
             )
         except Exception:
             pass
+
+    is_kvs_ajax = PAGINATION_MODE in ('kvs_ajax', 'kvs-ajax', 'ajax')
+    if is_kvs_ajax and not is_desc:
+        listing_root_url = build_page_url(1)
+        page = 1
+        page_url = listing_root_url
+        html = fetch_html(
+            scraper,
+            page_url,
+            BASE_URL,
+            wait_css=LIST_ENTRY_SELECTOR or None,
+            allow_blocked_html=True,
+        )
+        while True:
+            if MAX_POSTS > 0 and len(new_results) >= MAX_POSTS:
+                break
+            save_debug_html(page_url, html)
+            if not html:
+                break
+            pages_processed += 1
+            if page >= start_page:
+                process_listing_html(page, page_url, html)
+            if page >= int(PAGE_LIMIT):
+                break
+            nxt = extract_kvs_ajax_next(html)
+            if not nxt:
+                break
+            next_url = build_kvs_ajax_url(listing_root_url, nxt.get('block_id'), nxt.get('data_parameters'))
+            if not next_url:
+                break
+            page += 1
+            page_url = next_url
+            html = fetch_html(
+                scraper,
+                page_url,
+                listing_root_url,
+                wait_css=LIST_ENTRY_SELECTOR or None,
+                allow_blocked_html=True,
+            )
+    else:
+        page_iter = range(start_page, 0, -1) if is_desc else range(start_page, PAGE_LIMIT + 1)
+        for page in page_iter:
+            if MAX_POSTS > 0 and len(new_results) >= MAX_POSTS:
+                break
+            page_url = build_page_url(page)
+            html = fetch_html(
+                scraper,
+                page_url,
+                BASE_URL,
+                wait_css=LIST_ENTRY_SELECTOR or None,
+                allow_blocked_html=True,
+            )
+            save_debug_html(page_url, html)
+            if not html:
+                continue
+            pages_processed += 1
+            process_listing_html(page, page_url, html)
     tags = scrape_tags(scraper)
     merged_posts = filtered_existing_posts + new_results
     write_results(merged_posts, tags, {
@@ -932,14 +1233,15 @@ def run_flask_server():
             s = str(v or '').strip()
             if not s:
                 return ''
-            s = s.strip('`').strip()
+            s = s.replace('`', '').strip()
             if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
                 s = s[1:-1].strip()
-            s = s.strip('`').strip()
+            s = s.replace('`', '').strip()
             return s
 
         base_url = normalize_text(target.get('baseUrl') or target.get('base_url') or '')
         page_limit = int(target.get('pageLimit') or target.get('page_limit') or 1)
+        page_order = normalize_text(target.get('pageOrder') or target.get('page_order') or 'asc').lower()
         max_posts_raw = target.get('maxPosts')
         if max_posts_raw is None:
             max_posts_raw = target.get('max_posts')
@@ -949,7 +1251,6 @@ def run_flask_server():
             max_posts = 0
         query = str(target.get('query') or '').strip()
         mode = str(target.get('mode') or 'scrape').strip().lower()
-        auto_publish = bool(target.get('autoPublish') or False)
         use_selenium = bool(target.get('useSelenium') or target.get('use_selenium') or False)
         cfg = target.get('config') or {}
         pagination = target.get('pagination') or cfg.get('pagination') or {}
@@ -960,16 +1261,36 @@ def run_flask_server():
         if base_url:
             env['SCRAPER_BASE_URL'] = base_url
         env['PAGE_LIMIT'] = str(page_limit)
+        if page_order:
+            env['SCRAPE_PAGE_ORDER'] = str(page_order)
         env['MAX_POSTS'] = str(max_posts)
-        env['AUTO_PUBLISH'] = '1' if auto_publish else '0'
         env['USE_SELENIUM'] = '1' if use_selenium else '0'
         if isinstance(pagination, dict):
             page1 = normalize_text(pagination.get('page1'))
             pageN = normalize_text(pagination.get('pageN') or pagination.get('page_n'))
+            pagination_mode = normalize_text(pagination.get('mode') or pagination.get('type'))
+            ajax_sel = normalize_text(
+                pagination.get('ajaxLinkSelector')
+                or pagination.get('ajax_link_selector')
+                or pagination.get('paginationSelector')
+                or pagination.get('pagination_selector')
+            )
+            ajax_next_sel = normalize_text(
+                pagination.get('ajaxNextSelector')
+                or pagination.get('ajax_next_selector')
+                or pagination.get('nextSelector')
+                or pagination.get('next_selector')
+            )
             if page1:
                 env['PAGE1_PATH'] = str(page1)
             if pageN:
                 env['PAGEN_TEMPLATE'] = str(pageN)
+            if pagination_mode:
+                env['PAGINATION_MODE'] = str(pagination_mode).lower()
+            if ajax_sel:
+                env['AJAX_PAGINATION_SELECTOR'] = str(ajax_sel)
+            if ajax_next_sel:
+                env['AJAX_PAGINATION_NEXT_SELECTOR'] = str(ajax_next_sel)
         if isinstance(listing_cfg, dict):
             entry_sel = listing_cfg.get('entrySelector') or listing_cfg.get('entry_selector')
             title_sel = listing_cfg.get('titleSelector') or listing_cfg.get('title_selector')
@@ -1232,6 +1553,13 @@ def run_flask_server():
         err = None
         if exit_code != 0:
             err = f'exitCode={exit_code}'
+        if not err and not posts:
+            try:
+                pages_completed = int((summary or {}).get('pages_completed') or 0)
+            except Exception:
+                pages_completed = 0
+            if pages_completed <= 0:
+                err = 'no_pages_fetched (possible network/anti-bot block; try useSelenium=true)'
         return {
             'baseUrl': base_url,
             'pageLimit': page_limit,
@@ -1457,6 +1785,59 @@ def run_flask_server():
                     }
                 ],
             }
+            ,
+            {
+                'id': 'banglachotikahinii_videos',
+                'label': 'banglachotikahinii.com/videos',
+                'baseUrl': 'https://www.banglachotikahinii.com/videos',
+                'pagination': {
+                    'mode': 'kvs_ajax',
+                    'page1': '/',
+                    'paginationSelector': '#list_videos_most_recent_videos_pagination a[data-action="ajax"][data-block-id][data-parameters]',
+                    'nextSelector': '#list_videos_most_recent_videos_pagination a.next[data-action="ajax"][data-block-id][data-parameters]',
+                },
+                'listing': {
+                    'entrySelector': '#list_videos_most_recent_videos_items a[href]',
+                    'titleSelector': 'div.title',
+                    'fields': [
+                        {'name': 'link', 'source': 'a.href'},
+                        {'name': 'image_url', 'source': 'img.src'},
+                        {'name': 'title', 'source': 'div.title OR a.title'},
+                    ],
+                },
+                'details': {
+                    'videoSelector': 'div.col-video #kt_player .fp-player video.fp-engine[src], div.col-video #kt_player .fp-player video[src], div.col-video #kt_player video[src], div.col-video video[src], #kt_player video[src], video[src]',
+                    'meta': [
+                        {'name': 'meta_description', 'source': 'meta[name="description"]'},
+                        {'name': 'og_title', 'source': 'meta[property="og:title"] OR <title>'},
+                        {'name': 'og_description', 'source': 'meta[property="og:description"] OR meta_description'},
+                    ],
+                    'tagsSelector': 'div.col-video .top-options .buttons-row a, div.top-options .buttons-row a, a.btn.button[href*="/tags/"]',
+                    'fields': [
+                        {'name': 'video_src', 'source': 'video.src'},
+                        {'name': 'slinks_texts', 'source': 'tagsSelector texts'},
+                    ],
+                },
+                'collectedPostFields': [
+                    'title',
+                    'link',
+                    'image_url',
+                    'meta_description',
+                    'og_title',
+                    'og_description',
+                    'video_src',
+                    'slinks_texts',
+                ],
+                'recommendedTargets': [
+                    {
+                        'baseUrl': 'https://www.banglachotikahinii.com/videos',
+                        'pageLimit': 2,
+                        'query': '',
+                        'mode': 'details',
+                        'autoPublish': False,
+                    }
+                ],
+            }
         ]
 
     def get_run_row(run_id):
@@ -1536,7 +1917,7 @@ def run_flask_server():
           </div>
           <div id="targets" style="margin-top: 10px; display: grid; gap: 10px;"></div>
           <div class="row" style="margin-top: 10px;">
-            <button class="primary" id="runNow">Run One Time</button>
+            <button class="primary" id="runNow">Run All Targets Once</button>
             <button class="secondary" id="createJob">Create Scheduled Job</button>
           </div>
           <div class="row" style="margin-top: 10px;">
@@ -1566,6 +1947,9 @@ def run_flask_server():
 
           <div class="card" style="flex: 1;">
           <h2>Jobs</h2>
+          <div class="row" style="margin: 10px 0;">
+            <button class="secondary" id="runAllJobs">Run All Jobs Once</button>
+          </div>
           <div class="list" id="jobs"></div>
           </div>
         </div>
@@ -1590,7 +1974,7 @@ def run_flask_server():
 
       <div class="row" style="margin-top: 16px;">
         <div class="card" style="flex: 1; min-width: 360px;">
-          <h2>Example Preset (mmsbaba.com)</h2>
+          <h2 id="exampleTitle">Example Preset</h2>
           <pre id="example"></pre>
         </div>
       </div>
@@ -1649,9 +2033,58 @@ def run_flask_server():
         return PRESETS.find(x => x.id === id) || PRESETS[0];
       }}
 
-      function renderExample() {{
+      function normalizeTextInput(v) {{
+        let s = String(v ?? '').trim();
+        if (!s) return '';
+        s = s.replace(/`/g, '').trim();
+        if ((s.startsWith('\"') && s.endsWith('\"')) || (s.startsWith(\"'\") && s.endsWith(\"'\"))) {{
+          s = s.slice(1, -1).trim();
+        }}
+        return s;
+      }}
+
+      function normalizeConfigObject(obj) {{
+        if (!obj || typeof obj !== 'object') return {{ pagination: {{}}, listing: {{}}, details: {{}} }};
+        const cfg = obj;
+        return {{
+          pagination: cfg.pagination && typeof cfg.pagination === 'object' ? cfg.pagination : {{}},
+          listing: cfg.listing && typeof cfg.listing === 'object' ? cfg.listing : {{}},
+          details: cfg.details && typeof cfg.details === 'object' ? cfg.details : {{}},
+        }};
+      }}
+
+      function currentExamplePreset() {{
         const pr = presetById(el('preset').value);
-        el('example').textContent = JSON.stringify(pr, null, 2);
+        const t = state.targets && state.targets[0] ? state.targets[0] : null;
+        if (!t) return pr;
+        const cfg = normalizeConfigObject(t.config || {{}});
+        return {{
+          id: 'current_target',
+          label: 'Current target',
+          baseUrl: normalizeTextInput(t.baseUrl || pr.baseUrl || ''),
+          pagination: cfg.pagination,
+          listing: cfg.listing,
+          details: cfg.details,
+          recommendedTargets: [
+            {{
+              baseUrl: normalizeTextInput(t.baseUrl || pr.baseUrl || ''),
+              pageLimit: Number(t.pageLimit ?? 1),
+              query: String(t.query || ''),
+              mode: String(t.mode || 'details'),
+              pageOrder: String(t.pageOrder || 'asc'),
+              autoPublish: !!t.autoPublish,
+              useSelenium: !!t.useSelenium,
+              maxPosts: Number(t.maxPosts ?? 0),
+            }},
+          ],
+        }};
+      }}
+
+      function renderExample() {{
+        const ex = currentExamplePreset();
+        const title = el('exampleTitle');
+        if (title) title.textContent = 'Example Preset (' + String(ex.label || 'custom') + ')';
+        el('example').textContent = JSON.stringify(ex, null, 2);
       }}
 
       function targetRow(t, idx) {{
@@ -1670,6 +2103,10 @@ def run_flask_server():
               <option value="scrape" ${{t.mode === 'scrape' ? 'selected' : ''}}>scrape</option>
               <option value="details" ${{t.mode === 'details' ? 'selected' : ''}}>details</option>
             </select>
+            <select data-k="pageOrder">
+              <option value="asc" ${{(t.pageOrder || 'asc') === 'asc' ? 'selected' : ''}}>first→last</option>
+              <option value="desc" ${{t.pageOrder === 'desc' ? 'selected' : ''}}>last→first</option>
+            </select>
             <select data-k="autoPublish">
               <option value="false" ${{!t.autoPublish ? 'selected' : ''}}>autoPublish=false</option>
               <option value="true" ${{t.autoPublish ? 'selected' : ''}}>autoPublish=true</option>
@@ -1678,17 +2115,42 @@ def run_flask_server():
               <option value="false" ${{!t.useSelenium ? 'selected' : ''}}>useSelenium=false</option>
               <option value="true" ${{t.useSelenium ? 'selected' : ''}}>useSelenium=true</option>
             </select>
+            <button class="secondary" data-act="run-one">Run This Target Once</button>
             <button class="secondary" data-act="remove">Remove</button>
           </div>
-          <details style="margin-top: 8px;">
-            <summary class="muted">Advanced config (paste preset JSON or config JSON)</summary>
-            <textarea data-k="configJson" spellcheck="false" style="min-height: 180px;">${{escText(JSON.stringify(t.config || {{}}, null, 2))}}</textarea>
-          </details>
+          <div style="margin-top: 8px;">
+            <div class="muted" style="margin-bottom: 8px;">Advanced config (paste preset JSON or config JSON)</div>
+            <div class="row">
+              <select data-k="paginationMode">
+                <option value="" ${{!(t.config?.pagination?.mode) ? 'selected' : ''}}>pagination.mode (default)</option>
+                <option value="url" ${{(t.config?.pagination?.mode || '') === 'url' ? 'selected' : ''}}>url template</option>
+                <option value="kvs_ajax" ${{(t.config?.pagination?.mode || '') === 'kvs_ajax' ? 'selected' : ''}}>kvs_ajax</option>
+              </select>
+              <input data-k="page1Path" placeholder="pagination.page1 (e.g. /)" value="${{escAttr(t.config?.pagination?.page1 || '')}}" />
+              <input data-k="pageNTemplate" placeholder="pagination.pageN (e.g. /page/{{page}}/)" value="${{escAttr(t.config?.pagination?.pageN || '')}}" />
+            </div>
+            <div class="row" style="margin-top: 8px;">
+              <input data-k="ajaxPaginationSelector" placeholder="pagination.paginationSelector (AJAX links)" value="${{escAttr(t.config?.pagination?.paginationSelector || '')}}" />
+              <input data-k="ajaxNextSelector" placeholder="pagination.nextSelector (AJAX next)" value="${{escAttr(t.config?.pagination?.nextSelector || '')}}" />
+            </div>
+            <textarea data-k="configJson" spellcheck="false" style="min-height: 180px; margin-top: 8px;">${{escText(JSON.stringify(t.config || {{}}, null, 2))}}</textarea>
+          </div>
         `;
         wrap.querySelector('[data-act="remove"]').onclick = () => {{
           state.targets.splice(idx, 1);
           if (state.targets.length === 0) state.targets.push(defaultTarget());
           renderTargets();
+        }};
+        wrap.querySelector('[data-act="run-one"]').onclick = async () => {{
+          notify('starting run (single target)...', 'info');
+          const r = await apiPost('/api/runs', {{ targets: [serializeTarget(t)] }});
+          if (r.ok && r.data?.runId) {{
+            notify('run accepted ' + r.data.runId, 'success');
+            await refreshRuns();
+            await loadRun(r.data.runId);
+          }} else {{
+            notify('run failed ' + (r.error || ''), 'error');
+          }}
         }};
         for (const input of wrap.querySelectorAll('input, select, textarea')) {{
           const k = input.getAttribute('data-k');
@@ -1702,9 +2164,12 @@ def run_flask_server():
                     parsed.baseUrl &&
                     (parsed.pagination || parsed.listing || parsed.details || parsed.recommendedTargets);
                   if (looksLikePreset) {{
-                    t.baseUrl = parsed.baseUrl || t.baseUrl;
+                    const currentBase = normalizeTextInput(t.baseUrl || '');
+                    const importedBase = normalizeTextInput(parsed.baseUrl || '');
+                    if (!currentBase && importedBase) t.baseUrl = importedBase;
                     if (parsed.pageLimit != null) t.pageLimit = Number(parsed.pageLimit || 1);
                     if (parsed.mode) t.mode = String(parsed.mode);
+                    if (parsed.pageOrder) t.pageOrder = String(parsed.pageOrder);
                     if (parsed.autoPublish != null) t.autoPublish = !!parsed.autoPublish;
                     t.config = {{ pagination: parsed.pagination, listing: parsed.listing, details: parsed.details }};
                     notify('preset imported into target', 'success');
@@ -1727,6 +2192,54 @@ def run_flask_server():
               else if (k === 'maxPosts') t.maxPosts = Number(v || 0);
               else if (k === 'autoPublish') t.autoPublish = v === 'true';
               else if (k === 'useSelenium') t.useSelenium = v === 'true';
+              else if (k === 'baseUrl') t.baseUrl = normalizeTextInput(v);
+              else if (k === 'paginationMode') {{
+                t.config = t.config && typeof t.config === 'object' ? t.config : {{}};
+                t.config.pagination = t.config.pagination && typeof t.config.pagination === 'object' ? t.config.pagination : {{}};
+                const mode = String(v || '').trim();
+                if (!mode) delete t.config.pagination.mode;
+                else t.config.pagination.mode = mode;
+                const ta = wrap.querySelector('textarea[data-k=\"configJson\"]');
+                if (ta) ta.value = JSON.stringify(t.config || {{}}, null, 2);
+                renderExample();
+                return;
+              }}
+              else if (k === 'page1Path') {{
+                t.config = t.config && typeof t.config === 'object' ? t.config : {{}};
+                t.config.pagination = t.config.pagination && typeof t.config.pagination === 'object' ? t.config.pagination : {{}};
+                t.config.pagination.page1 = String(v || '');
+                const ta = wrap.querySelector('textarea[data-k=\"configJson\"]');
+                if (ta) ta.value = JSON.stringify(t.config || {{}}, null, 2);
+                renderExample();
+                return;
+              }}
+              else if (k === 'pageNTemplate') {{
+                t.config = t.config && typeof t.config === 'object' ? t.config : {{}};
+                t.config.pagination = t.config.pagination && typeof t.config.pagination === 'object' ? t.config.pagination : {{}};
+                t.config.pagination.pageN = String(v || '');
+                const ta = wrap.querySelector('textarea[data-k=\"configJson\"]');
+                if (ta) ta.value = JSON.stringify(t.config || {{}}, null, 2);
+                renderExample();
+                return;
+              }}
+              else if (k === 'ajaxPaginationSelector') {{
+                t.config = t.config && typeof t.config === 'object' ? t.config : {{}};
+                t.config.pagination = t.config.pagination && typeof t.config.pagination === 'object' ? t.config.pagination : {{}};
+                t.config.pagination.paginationSelector = String(v || '');
+                const ta = wrap.querySelector('textarea[data-k=\"configJson\"]');
+                if (ta) ta.value = JSON.stringify(t.config || {{}}, null, 2);
+                renderExample();
+                return;
+              }}
+              else if (k === 'ajaxNextSelector') {{
+                t.config = t.config && typeof t.config === 'object' ? t.config : {{}};
+                t.config.pagination = t.config.pagination && typeof t.config.pagination === 'object' ? t.config.pagination : {{}};
+                t.config.pagination.nextSelector = String(v || '');
+                const ta = wrap.querySelector('textarea[data-k=\"configJson\"]');
+                if (ta) ta.value = JSON.stringify(t.config || {{}}, null, 2);
+                renderExample();
+                return;
+              }}
               else if (k === 'query') {{
                 const vv = String(v || '').trim();
                 const looksLikePresetJson =
@@ -1741,6 +2254,7 @@ def run_flask_server():
                 t.query = v;
               }}
               else t[k] = v;
+              renderExample();
             }};
           }}
         }}
@@ -1752,6 +2266,7 @@ def run_flask_server():
         return {{
           baseUrl: pr.baseUrl || 'https://mmsbaba.com',
           pageLimit: 1,
+          pageOrder: 'asc',
           maxPosts: 0,
           query: '',
           mode: 'details',
@@ -2059,7 +2574,7 @@ def run_flask_server():
             state.targets = targets.map(x => ({{...x, maxPosts: x.maxPosts ?? 0, useSelenium: !!x.useSelenium, config }}));
           }} else {{
             state.targets = [{{ 
-              baseUrl: pr.baseUrl || 'https://mmsbaba.com', 
+              baseUrl: normalizeTextInput(pr.baseUrl || 'https://mmsbaba.com'), 
               pageLimit: pr.pageLimit ?? 1, 
               maxPosts: pr.maxPosts ?? 0,
               query: pr.query || '', 
@@ -2077,9 +2592,27 @@ def run_flask_server():
         }}
       }};
 
+      function serializeTargets() {{
+        const out = [];
+        for (const t of (state.targets || [])) {{
+          if (!t || typeof t !== 'object') continue;
+          out.push(serializeTarget(t));
+        }}
+        return out;
+      }}
+
+      function serializeTarget(t) {{
+        const cfg = normalizeConfigObject(t.config || {{}});
+        return {{
+          ...t,
+          baseUrl: normalizeTextInput(t.baseUrl || ''),
+          config: cfg,
+        }};
+      }}
+
       el('runNow').onclick = async () => {{
         notify('starting run...', 'info');
-        const r = await apiPost('/api/runs', {{ targets: state.targets }});
+        const r = await apiPost('/api/runs', {{ targets: serializeTargets() }});
         if (r.ok && r.data?.runId) {{
           notify('run accepted ' + r.data.runId, 'success');
           await refreshRuns();
@@ -2089,12 +2622,31 @@ def run_flask_server():
         }}
       }};
 
+      el('runAllJobs').onclick = async () => {{
+        notify('running all jobs...', 'info');
+        const jr = await apiGet('/api/jobs');
+        const jobs = Array.isArray(jr.data) ? jr.data : [];
+        if (!jobs.length) {{
+          notify('no jobs found', 'error');
+          return;
+        }}
+        let okCount = 0;
+        let failCount = 0;
+        for (const j of jobs) {{
+          const rr = await apiPost('/api/jobs/' + j.id + '/run', {{}});
+          if (rr.ok) okCount++;
+          else failCount++;
+        }}
+        notify('jobs run requested ok=' + okCount + ' failed=' + failCount, failCount ? 'error' : 'success');
+        await refreshRuns();
+      }};
+
       el('createJob').onclick = async () => {{
         const name = el('jobName').value || '';
         const intervalSeconds = el('jobInterval').value ? Number(el('jobInterval').value) : null;
         const runAtLocal = el('jobRunAt').value || '';
         const runAt = runAtLocal ? new Date(runAtLocal).toISOString() : null;
-        const payload = {{ name, intervalSeconds, runAt, targets: state.targets }};
+        const payload = {{ name, intervalSeconds, runAt, targets: serializeTargets() }};
         if (state.editJobId) {{
           notify('saving job...', 'info');
           const r = await apiPost('/api/jobs/' + state.editJobId, payload);
@@ -2135,8 +2687,12 @@ def run_flask_server():
           return;
         }}
         notify('publishing...', 'info');
-        const r = await apiPost('/api/publish-sanity', {{ runId: state.selectedRunId }});
-        notify(r.ok ? ('published exit=' + r.exitCode) : ('publish failed ' + (r.error || '')), r.ok ? 'success' : 'error');
+        const publishPath = '/api/admin/scraper/publish-sanity';
+        const isLocalScraper = location.port === '4000' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+        const publishUrl = isLocalScraper ? `${{location.protocol}}//${{location.hostname}}:3000${{publishPath}}` : publishPath;
+        const r = await apiPost(publishUrl, {{ runId: state.selectedRunId }});
+        const d = r.data || {{}};
+        notify(r.ok ? (`published posted=${{d.posted || 0}} skipped=${{d.skipped || 0}} failed=${{d.failed || 0}}`) : ('publish failed ' + (r.error || '')), r.ok ? 'success' : 'error');
         await loadLog();
       }};
 
@@ -2168,8 +2724,8 @@ def run_flask_server():
     def api_presets():
         return jsonify({'ok': True, 'data': presets()})
 
-    @app.post('/api/publish-sanity')
-    def api_publish_sanity():
+    @app.post('/api/publishable-posts')
+    def api_publishable_posts():
         try:
             data = request.get_json(silent=True) or {}
             run_id = str(data.get('runId') or '').strip()
@@ -2216,50 +2772,63 @@ def run_flask_server():
                 )
             if not out_posts:
                 return jsonify({'ok': False, 'error': 'no publishable posts (missing link/video_src)'}), 400
-            try:
-                with open(os.path.join(OUTPUT_DIR, 'post-details.json'), 'w', encoding='utf-8') as f:
-                    json.dump({'count': len(out_posts), 'posts': out_posts}, f, ensure_ascii=False, indent=2)
-            except Exception:
-                return jsonify({'ok': False, 'error': 'failed to write post-details.json'}), 500
-            root = os.path.abspath(os.path.join(OUTPUT_DIR, '..'))
-            script_path = os.path.join(root, 'scripts', 'publish-sanity.js')
-            env = os.environ.copy()
-            missing_env = []
-            if not env.get('NEXT_PUBLIC_SANITY_PROJECT_ID'):
-                missing_env.append('NEXT_PUBLIC_SANITY_PROJECT_ID')
-            if not env.get('NEXT_PUBLIC_SANITY_TOKEN'):
-                missing_env.append('NEXT_PUBLIC_SANITY_TOKEN')
-            if missing_env:
-                return (
-                    jsonify(
-                        {
-                            'ok': False,
-                            'error': 'missing Sanity env vars: ' + ', '.join(missing_env),
-                        }
-                    ),
-                    400,
-                )
-            if not os.path.exists(script_path):
-                return jsonify({'ok': False, 'error': 'publish script not found'}), 500
-            p = subprocess.run(
-                ['node', script_path],
-                cwd=root,
-                check=False,
-                env=env,
-                capture_output=True,
-                text=True,
-            )
-            if p.stdout:
-                append_log(p.stdout, live=True)
-            if p.stderr:
-                append_log(p.stderr, live=True)
-            if p.returncode != 0:
-                err_text = (p.stderr or p.stdout or '').strip()
-                err_text = err_text[:1200] if err_text else 'publish failed'
-                return jsonify({'ok': False, 'exitCode': p.returncode, 'error': err_text}), 500
-            return jsonify({'ok': True, 'exitCode': p.returncode})
+            return jsonify({'ok': True, 'data': {'count': len(out_posts), 'posts': out_posts}})
         except Exception as e:
             return jsonify({'ok': False, 'error': str(e)}), 500
+
+    @app.get('/api/media')
+    def api_media():
+        try:
+            from urllib.parse import urlparse
+            from flask import Response
+            import ipaddress
+
+            url = str(request.args.get('url') or '').strip()
+            referer = str(request.args.get('referer') or '').strip()
+            if not url:
+                return jsonify({'ok': False, 'error': 'url required'}), 400
+            p = urlparse(url)
+            if p.scheme not in ('http', 'https') or not p.netloc:
+                return jsonify({'ok': False, 'error': 'invalid url'}), 400
+            host = (p.hostname or '').strip().lower()
+            if not host:
+                return jsonify({'ok': False, 'error': 'invalid url'}), 400
+            if host in ('localhost', '127.0.0.1', '0.0.0.0', '::1'):
+                return jsonify({'ok': False, 'error': 'blocked host'}), 400
+            try:
+                ip = ipaddress.ip_address(host)
+                if ip.is_private or ip.is_loopback or ip.is_link_local:
+                    return jsonify({'ok': False, 'error': 'blocked host'}), 400
+            except Exception:
+                pass
+
+            if referer:
+                rp = urlparse(referer)
+                rh = (rp.hostname or '').strip().lower()
+                if rh and rh != host:
+                    return jsonify({'ok': False, 'error': 'referer host mismatch'}), 400
+
+            scraper = make_scraper()
+            headers = {}
+            if referer:
+                headers['Referer'] = referer
+            r = scraper.get(url, headers=headers, timeout=90, stream=True)
+            if r.status_code != 200:
+                return jsonify({'ok': False, 'error': f'fetch_failed status={r.status_code}'}), 502
+
+            def gen():
+                for chunk in r.iter_content(chunk_size=1024 * 64):
+                    if chunk:
+                        yield chunk
+
+            ct = r.headers.get('content-type') or 'application/octet-stream'
+            return Response(gen(), mimetype=ct)
+        except Exception as e:
+            return jsonify({'ok': False, 'error': str(e)}), 500
+
+    @app.post('/api/publish-sanity')
+    def api_publish_sanity():
+        return jsonify({'ok': False, 'error': 'publishing moved to web API'}), 410
 
     @app.get('/health')
     def health():
@@ -2566,7 +3135,8 @@ def run_flask_server():
 
     port = int(os.environ.get('SCRAPER_PORT', '4000'))
     host = os.environ.get('SCRAPER_HOST', '0.0.0.0')
-    app.run(host=host, port=port, threaded=True)
+    dev_reload = os.environ.get('SCRAPER_DEV_RELOAD', '0') == '1'
+    app.run(host=host, port=port, threaded=True, debug=dev_reload, use_reloader=dev_reload)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == 'server':
@@ -2768,21 +3338,6 @@ if __name__ == '__main__':
         with open(listing_path, 'r', encoding='utf-8') as f:
             listing = json.load(f)
         extract_details(listing.get('posts', []))
-        try:
-            env = os.environ.copy()
-            if env.get('AUTO_PUBLISH', '0') != '1':
-                print('Skip auto publish: AUTO_PUBLISH!=1')
-                remove_debug_pages()
-                raise SystemExit(0)
-            import subprocess
-            root = os.path.abspath(os.path.join(OUTPUT_DIR, '..'))
-            script_path = os.path.join(root, 'scripts', 'publish-sanity.js')
-            if env.get('NEXT_PUBLIC_SANITY_PROJECT_ID') and env.get('NEXT_PUBLIC_SANITY_TOKEN'):
-                subprocess.run(['node', script_path], cwd=root, check=False, env=env)
-            else:
-                print('Skip auto publish: missing Sanity env')
-        except Exception as e:
-            print(f'Auto publish failed: {e}')
         remove_debug_pages()
     else:
         scrape()

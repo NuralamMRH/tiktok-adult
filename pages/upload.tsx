@@ -107,10 +107,7 @@ export default function Upload() {
     <Layout>
       <Head>
         <title>Upload | Tik Tok</title>
-        <meta
-          property='og:url'
-          content='https://tiktok-clone-zhy.vercel.app/upload'
-        ></meta>
+        <meta property='og:url' content='https://xxxdeshi.xyz/upload'></meta>
       </Head>
 
       <div
