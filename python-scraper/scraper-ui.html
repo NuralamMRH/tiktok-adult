@@ -55,6 +55,10 @@
     </style>
   </head>
   <body class="flex h-screen overflow-hidden">
+    <div
+      id="toast"
+      class="fixed bottom-6 right-6 z-[200] hidden max-w-md rounded-2xl border border-slate-800 bg-slate-950/90 px-5 py-4 text-sm text-slate-200 shadow-2xl"
+    ></div>
     <!-- Sidebar -->
     <aside
       id="sidebar"
@@ -137,7 +141,7 @@
           <div class="h-6 w-px bg-slate-800"></div>
           <div class="flex gap-3">
             <button
-              onclick="runAllTargets()"
+              onclick="runAllTargets(event)"
               class="rounded-full bg-emerald-600 px-5 py-2 text-xs font-black text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-500"
             >
               <i class="fas fa-play mr-2"></i> RUN ALL TARGETS
@@ -147,7 +151,7 @@
 
         <div class="flex items-center gap-4">
           <button
-            onclick="toggleModal('targetModal', true)"
+            onclick="openTargetModal(null)"
             class="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500"
           >
             <i class="fas fa-plus"></i>
@@ -158,66 +162,37 @@
       <div class="custom-scrollbar flex-1 overflow-y-auto p-8">
         <!-- TAB: TARGETS -->
         <div id="targets" class="tab-content active space-y-6">
-          <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <!-- Target Card -->
-            <div
-              class="glass-card rounded-[2rem] border-l-8 border-indigo-600 p-6"
-            >
-              <div class="mb-6 flex items-start justify-between">
-                <div>
-                  <h3 class="text-xl font-bold text-white">mmsbaba.com</h3>
-                  <p class="mt-1 text-xs text-slate-500">
-                    Status: <span class="text-emerald-400">Ready</span> •
-                    Selenium: <span class="text-rose-400">Disabled</span>
-                  </p>
-                </div>
-                <div class="flex gap-2">
-                  <button
-                    class="rounded-2xl bg-slate-900 p-3 transition hover:bg-slate-800"
-                  >
-                    <i class="fas fa-edit text-slate-400"></i>
-                  </button>
-                  <button
-                    class="rounded-2xl bg-emerald-600/10 px-6 py-3 text-xs font-bold text-emerald-400 transition hover:bg-emerald-600 hover:text-white"
-                  >
-                    START SCRAPE
-                  </button>
-                </div>
-              </div>
-              <div class="grid grid-cols-3 gap-4">
-                <div
-                  class="rounded-2xl border border-slate-800 bg-black/30 p-3"
-                >
-                  <p
-                    class="mb-1 text-[10px] font-bold uppercase text-slate-500"
-                  >
-                    Page Limit
-                  </p>
-                  <p class="text-lg font-black text-slate-300">296</p>
-                </div>
-                <div
-                  class="rounded-2xl border border-slate-800 bg-black/30 p-3"
-                >
-                  <p
-                    class="mb-1 text-[10px] font-bold uppercase text-slate-500"
-                  >
-                    Schedules
-                  </p>
-                  <p class="text-lg font-black text-indigo-400">01</p>
-                </div>
-                <div
-                  class="rounded-2xl border border-slate-800 bg-black/30 p-3"
-                >
-                  <p
-                    class="mb-1 text-[10px] font-bold uppercase text-slate-500"
-                  >
-                    Total Posts
-                  </p>
-                  <p class="text-lg font-black text-emerald-400">1.2K</p>
-                </div>
-              </div>
+          <div
+            class="flex flex-col justify-between gap-6 md:flex-row md:items-center"
+          >
+            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+              <select
+                id="presetSelect"
+                class="min-w-[240px] rounded-2xl border border-slate-800 bg-slate-900 px-6 py-3 text-sm focus:border-indigo-500 focus:outline-none"
+              ></select>
+              <button
+                id="loadPresetBtn"
+                class="rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-xs font-bold transition hover:bg-slate-800"
+              >
+                Load Preset
+              </button>
+              <button
+                id="importPresetBtn"
+                class="rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-xs font-bold transition hover:bg-slate-800"
+              >
+                Import Preset JSON
+              </button>
             </div>
+            <div
+              id="targetsMeta"
+              class="text-xs font-bold text-slate-500"
+            ></div>
           </div>
+
+          <div
+            id="targetsGrid"
+            class="grid grid-cols-1 gap-6 xl:grid-cols-2"
+          ></div>
         </div>
 
         <!-- TAB: RESULTS (TARGET BASED) -->
@@ -227,101 +202,34 @@
           >
             <div class="flex items-center gap-4">
               <select
-                onchange="filterResultsByTarget(this.value)"
+                id="resultsRunSelect"
                 class="min-w-[240px] rounded-2xl border border-slate-800 bg-slate-900 px-6 py-3 text-sm focus:border-indigo-500 focus:outline-none"
-              >
-                <option value="mmsbaba">mmsbaba.com (Latest Run)</option>
-                <option value="bangla">
-                  banglachotikahinii.com (Finished 2h ago)
-                </option>
-                <option value="archive">Archive: mmsbaba (2025-12-25)</option>
-              </select>
-              <div class="text-xs font-bold text-slate-500">
+              ></select>
+              <div id="resultsMeta" class="text-xs font-bold text-slate-500">
                 <i class="fas fa-info-circle mr-1"></i> Showing 40 results
               </div>
             </div>
             <div class="flex gap-2">
               <button
+                id="downloadCsvBtn"
                 class="rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-xs transition hover:bg-slate-800"
               >
                 Download CSV
               </button>
               <button
+                id="deleteRunBtn"
                 class="rounded-xl border border-rose-600/20 bg-rose-600/10 px-4 py-2 text-xs text-rose-500 transition hover:bg-rose-600 hover:text-white"
               >
-                Delete All
+                Delete Run
               </button>
             </div>
           </div>
 
           <!-- POST CARDS GRID -->
           <div
+            id="resultsGrid"
             class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
-          >
-            <!-- Post Card -->
-            <div
-              class="glass-card post-card group overflow-hidden rounded-3xl border border-slate-800 transition-all duration-300 hover:border-indigo-500/50"
-            >
-              <div class="relative h-48 overflow-hidden bg-slate-950">
-                <img
-                  src="https://via.placeholder.com/400x225/1e293b/cbd5e1?text=Post+Thumbnail"
-                  alt="post"
-                  class="h-full w-full object-cover transition duration-500 group-hover:scale-110"
-                />
-                <div
-                  class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"
-                ></div>
-                <div class="absolute bottom-4 left-4 right-4">
-                  <span
-                    class="mb-2 inline-block rounded bg-indigo-600 px-2 py-1 text-[10px] font-black"
-                    >MMSBABA</span
-                  >
-                  <h4 class="line-clamp-1 text-sm font-bold text-white">
-                    হোটেল রুমে ট্রাক ড্রাইভারের সাথে ভারতীয় গ্রামের স্ত্রীর
-                    রোমান্টিক
-                  </h4>
-                </div>
-                <div
-                  class="post-actions absolute right-4 top-4 flex flex-col gap-2 opacity-0 transition duration-300"
-                >
-                  <button
-                    class="h-8 w-8 rounded-lg bg-white/10 text-white backdrop-blur-md transition hover:bg-indigo-600"
-                  >
-                    <i class="fas fa-edit text-xs"></i>
-                  </button>
-                  <button
-                    class="h-8 w-8 rounded-lg bg-white/10 text-white backdrop-blur-md transition hover:bg-rose-600"
-                  >
-                    <i class="fas fa-trash text-xs"></i>
-                  </button>
-                </div>
-              </div>
-              <div class="space-y-3 p-5">
-                <p class="line-clamp-2 text-xs italic text-slate-400">
-                  স্বামীর লম্পট ড্রাইভারের সাথে রোমান্টিক।
-                </p>
-                <div class="flex flex-wrap gap-1">
-                  <span
-                    class="rounded-full bg-slate-800 px-2 py-0.5 text-[9px] text-slate-400"
-                    >Boudi Sex</span
-                  >
-                  <span
-                    class="rounded-full bg-slate-800 px-2 py-0.5 text-[9px] text-slate-400"
-                    >Bangla MMS</span
-                  >
-                </div>
-                <div
-                  class="flex items-center justify-between border-t border-slate-800 pt-3 font-mono text-[10px]"
-                >
-                  <span class="text-slate-500">2025-12-27</span>
-                  <a href="#" class="text-indigo-400 hover:underline"
-                    >View Source <i class="fas fa-external-link-alt ml-1"></i
-                  ></a>
-                </div>
-              </div>
-            </div>
-            <!-- Repeat Card for Demo -->
-          </div>
+          ></div>
         </div>
 
         <!-- TAB: SCHEDULES -->
@@ -330,52 +238,10 @@
             <h3 class="text-xl font-bold">Automation Queue</h3>
           </div>
 
-          <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <div
-              class="glass-card group relative rounded-3xl border border-slate-800 p-6"
-            >
-              <div class="mb-6 flex items-start justify-between">
-                <div
-                  class="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600/10 text-indigo-500"
-                >
-                  <i class="fas fa-clock text-xl"></i>
-                </div>
-                <div class="text-right">
-                  <span
-                    class="rounded bg-emerald-500/10 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-500"
-                    >Enabled</span
-                  >
-                </div>
-              </div>
-              <h4 class="text-lg font-bold">mmsbaba.com</h4>
-              <div
-                class="mt-4 space-y-3 rounded-2xl border border-slate-900 bg-slate-950 p-4"
-              >
-                <div class="flex justify-between text-xs">
-                  <span class="text-slate-500">Frequency</span>
-                  <span class="font-bold text-indigo-400"
-                    >Every 30 Minutes</span
-                  >
-                </div>
-                <div class="flex justify-between text-xs">
-                  <span class="text-slate-500">Last Run</span>
-                  <span class="text-slate-300">12 mins ago</span>
-                </div>
-              </div>
-              <div class="mt-6 flex gap-2">
-                <button
-                  class="flex-1 rounded-xl bg-slate-800 py-3 text-xs font-bold transition hover:bg-slate-700"
-                >
-                  EDIT
-                </button>
-                <button
-                  class="rounded-xl bg-rose-600/10 p-3 text-rose-500 transition hover:bg-rose-600 hover:text-white"
-                >
-                  <i class="fas fa-trash"></i>
-                </button>
-              </div>
-            </div>
-          </div>
+          <div
+            id="schedulesGrid"
+            class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
+          ></div>
         </div>
 
         <!-- TAB: LIVE STREAM (ACTIVE RUNS) -->
@@ -395,25 +261,30 @@
                   class="flex flex-col justify-between gap-6 md:flex-row md:items-center"
                 >
                   <div>
-                    <h3 class="text-3xl font-black italic text-white">
-                      mmsbaba.com
-                    </h3>
+                    <h3
+                      id="liveBaseUrl"
+                      class="text-3xl font-black italic text-white"
+                    ></h3>
                     <div class="mt-2 flex items-center gap-3">
                       <span
+                        id="liveRunId"
                         class="font-mono text-xs tracking-tighter text-slate-500"
-                        >RUN_ID: a4b59a96205547ac9e7005d28ae89426</span
-                      >
+                      ></span>
                       <span
+                        id="livePing"
                         class="h-1.5 w-1.5 animate-ping rounded-full bg-emerald-500"
                       ></span>
                       <span
+                        id="liveStatus"
                         class="text-[10px] font-black uppercase text-emerald-500"
-                        >Scraping Now</span
-                      >
+                      ></span>
                     </div>
                   </div>
                   <div class="text-right">
-                    <div class="text-4xl font-black text-indigo-500">65%</div>
+                    <div
+                      id="livePercent"
+                      class="text-4xl font-black text-indigo-500"
+                    ></div>
                     <div
                       class="text-[10px] font-bold uppercase tracking-widest text-slate-500"
                     >
@@ -427,14 +298,15 @@
                     class="h-3 w-full overflow-hidden rounded-full border border-slate-800 bg-slate-900"
                   >
                     <div
+                      id="liveBar"
                       class="h-full w-[65%] rounded-full bg-gradient-to-r from-indigo-600 to-blue-500 shadow-[0_0_20px_rgba(79,70,229,0.5)]"
                     ></div>
                   </div>
                   <div
                     class="flex justify-between text-[10px] font-bold uppercase text-slate-500"
                   >
-                    <span>Page 195 of 296</span>
-                    <span>Phase: Extracting Details</span>
+                    <span id="livePageText"></span>
+                    <span id="livePhaseText"></span>
                   </div>
                 </div>
 
@@ -447,7 +319,10 @@
                     >
                       Processed
                     </p>
-                    <p class="text-2xl font-black text-white">53</p>
+                    <p
+                      id="liveProcessed"
+                      class="text-2xl font-black text-white"
+                    ></p>
                   </div>
                   <div
                     class="rounded-3xl border border-slate-900 bg-slate-950/50 p-6"
@@ -457,7 +332,10 @@
                     >
                       New Items
                     </p>
-                    <p class="text-2xl font-black text-emerald-400">30</p>
+                    <p
+                      id="liveNewItems"
+                      class="text-2xl font-black text-emerald-400"
+                    ></p>
                   </div>
                   <div
                     class="rounded-3xl border border-slate-900 bg-slate-950/50 p-6"
@@ -467,7 +345,10 @@
                     >
                       Skipped
                     </p>
-                    <p class="text-2xl font-black text-amber-500">0</p>
+                    <p
+                      id="liveSkipped"
+                      class="text-2xl font-black text-amber-500"
+                    ></p>
                   </div>
                   <div
                     class="rounded-3xl border border-slate-900 bg-slate-950/50 p-6"
@@ -477,8 +358,8 @@
                     >
                       Data Load
                     </p>
-                    <p class="text-2xl font-black text-white">
-                      75.5 <span class="text-xs text-slate-500">KB</span>
+                    <p id="liveDataLoad" class="text-2xl font-black text-white">
+                      <span class="text-xs text-slate-500">-</span>
                     </p>
                   </div>
                 </div>
@@ -487,7 +368,7 @@
                   class="truncate rounded-2xl border border-slate-800 bg-slate-900/40 p-4 font-mono text-xs text-indigo-400"
                 >
                   <span class="mr-2 text-slate-500">➜</span>
-                  https://mmsbaba.com/page/195/
+                  <span id="liveCurrentUrl"></span>
                 </div>
               </div>
 
@@ -496,6 +377,7 @@
                   class="flex flex-1 flex-col items-center justify-center rounded-[2rem] border border-rose-600/10 bg-rose-600/5 p-6 text-center"
                 >
                   <div
+                    id="stopRunBtn"
                     class="mb-4 flex h-16 w-16 cursor-pointer items-center justify-center rounded-full bg-rose-600 text-white shadow-xl shadow-rose-600/30 transition hover:scale-105"
                   >
                     <i class="fas fa-stop text-xl"></i>
@@ -509,6 +391,27 @@
                 </div>
               </div>
             </div>
+          </div>
+          <div
+            class="glass-card overflow-hidden rounded-[2.5rem] border border-slate-800 p-8"
+          >
+            <div class="mb-4 flex items-center justify-between">
+              <h4
+                class="text-sm font-black uppercase tracking-widest text-slate-500"
+              >
+                Live Log
+              </h4>
+              <button
+                id="reloadLogBtn"
+                class="rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-xs font-bold transition hover:bg-slate-800"
+              >
+                Reload
+              </button>
+            </div>
+            <pre
+              id="liveLog"
+              class="custom-scrollbar max-h-[420px] overflow-y-auto whitespace-pre-wrap break-words rounded-3xl border border-slate-900 bg-black/60 p-6 font-mono text-xs text-slate-200"
+            ></pre>
           </div>
         </div>
       </div>
@@ -546,6 +449,7 @@
                   >Base URL</label
                 >
                 <input
+                  id="targetBaseUrlInput"
                   type="text"
                   placeholder="https://..."
                   class="w-full rounded-2xl border border-slate-800 bg-black px-6 py-4 font-medium transition focus:border-indigo-500 focus:outline-none"
@@ -558,6 +462,7 @@
                     >Target Name</label
                   >
                   <input
+                    id="targetNameInput"
                     type="text"
                     placeholder="e.g. MMS Baba"
                     class="w-full rounded-2xl border border-slate-800 bg-black px-6 py-4 transition focus:border-indigo-500 focus:outline-none"
@@ -569,6 +474,7 @@
                     >Schedule Every...</label
                   >
                   <select
+                    id="targetScheduleSelect"
                     class="w-full cursor-pointer appearance-none rounded-2xl border border-slate-800 bg-black px-6 py-4 focus:border-indigo-500 focus:outline-none"
                   >
                     <option value="none">No Schedule</option>
@@ -592,6 +498,7 @@
                   >
                 </label>
                 <textarea
+                  id="targetConfigTextarea"
                   class="json-editor custom-scrollbar h-48 w-full rounded-3xl p-6 text-xs focus:outline-none"
                   spellcheck="false"
                 >
@@ -618,6 +525,7 @@
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-bold">Use Selenium</span>
                   <input
+                    id="targetUseSeleniumToggle"
                     type="checkbox"
                     class="checked:after:left-5.5 relative h-5 w-10 cursor-pointer appearance-none rounded-full bg-slate-800 transition-all after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:content-[''] checked:bg-indigo-600"
                   />
@@ -625,6 +533,7 @@
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-bold">Auto Publish</span>
                   <input
+                    id="targetAutoPublishToggle"
                     type="checkbox"
                     checked
                     class="checked:after:left-5.5 relative h-5 w-10 cursor-pointer appearance-none rounded-full bg-slate-800 transition-all after:absolute after:left-0.5 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:content-[''] checked:bg-indigo-600"
@@ -642,6 +551,7 @@
               Cancel
             </button>
             <button
+              id="saveTargetBtn"
               class="flex-1 rounded-2xl bg-indigo-600 py-5 text-xs font-black uppercase tracking-widest shadow-2xl shadow-indigo-600/30 transition hover:bg-indigo-500"
             >
               Save Target Config
@@ -665,10 +575,12 @@
             <h3 class="text-2xl font-bold">Import Configuration</h3>
           </div>
           <textarea
+            id="importPresetTextarea"
             class="json-editor h-48 w-full rounded-2xl p-6 text-xs focus:outline-none"
             placeholder="Paste your preset JSON here..."
           ></textarea>
           <button
+            id="applyImportBtn"
             class="w-full rounded-2xl bg-indigo-600 py-4 text-xs font-bold uppercase shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500"
           >
             Apply Configuration
@@ -722,21 +634,765 @@
         document.getElementById(modalId).classList.toggle('hidden', !show);
       }
 
-      function runAllTargets() {
-        // Mock trigger for global run
-        const btn = event.currentTarget;
-        btn.innerHTML =
-          '<i class="fas fa-circle-notch fa-spin mr-2"></i> STARTING ALL...';
-        setTimeout(() => {
-          switchTab('active-runs');
-          btn.innerHTML = '<i class="fas fa-play mr-2"></i> RUN ALL TARGETS';
-        }, 1000);
+      const state = {
+        presets: [],
+        selectedPresetId: '',
+        targets: [],
+        runs: [],
+        jobs: [],
+        selectedRunId: '',
+        selectedRunPosts: [],
+        editingTargetIndex: null,
+      };
+
+      function el(id) {
+        return document.getElementById(id);
       }
 
-      function filterResultsByTarget(target) {
-        console.log('Filtering results for:', target);
-        // logic to re-fetch/filter the cards
+      function notify(message, type) {
+        const toast = el('toast');
+        if (!toast) return;
+        toast.textContent = message || '';
+        toast.classList.toggle('hidden', !message);
+        toast.classList.remove(
+          'border-rose-600/20',
+          'bg-rose-600/10',
+          'text-rose-200',
+        );
+        toast.classList.remove(
+          'border-emerald-600/20',
+          'bg-emerald-600/10',
+          'text-emerald-200',
+        );
+        toast.classList.remove(
+          'border-slate-800',
+          'bg-slate-950/90',
+          'text-slate-200',
+        );
+        if (type === 'error') {
+          toast.classList.add(
+            'border-rose-600/20',
+            'bg-rose-600/10',
+            'text-rose-200',
+          );
+        } else if (type === 'success') {
+          toast.classList.add(
+            'border-emerald-600/20',
+            'bg-emerald-600/10',
+            'text-emerald-200',
+          );
+        } else {
+          toast.classList.add(
+            'border-slate-800',
+            'bg-slate-950/90',
+            'text-slate-200',
+          );
+        }
+        window.clearTimeout(state.toastTimer);
+        state.toastTimer = window.setTimeout(() => {
+          toast.classList.add('hidden');
+        }, 3000);
       }
+
+      async function apiGet(path) {
+        const r = await fetch(path, { cache: 'no-store' });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+        return j;
+      }
+
+      async function apiSend(path, method, body) {
+        const r = await fetch(path, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+        return j;
+      }
+
+      function safeJsonParse(text) {
+        try {
+          return JSON.parse(text);
+        } catch {
+          return null;
+        }
+      }
+
+      function normalizeTarget(t) {
+        const baseUrl = String(t?.baseUrl || t?.base_url || '').trim();
+        const pageLimit = Number.isFinite(Number(t?.pageLimit ?? t?.page_limit))
+          ? Number(t.pageLimit ?? t.page_limit)
+          : 1;
+        const query = String(t?.query || '').trim();
+        const mode = String(t?.mode || 'scrape')
+          .trim()
+          .toLowerCase();
+        const useSelenium = !!(t?.useSelenium ?? t?.use_selenium);
+        const autoPublish = !!t?.autoPublish;
+        const maxPosts = Number.isFinite(Number(t?.maxPosts ?? t?.max_posts))
+          ? Number(t.maxPosts ?? t.max_posts)
+          : 0;
+        const config =
+          typeof t?.config === 'object' && t?.config
+            ? t.config
+            : typeof t === 'object' && t
+              ? t.pagination || t.listing || t.details
+                ? {
+                    pagination: t.pagination,
+                    listing: t.listing,
+                    details: t.details,
+                  }
+                : {}
+              : {};
+        return {
+          baseUrl,
+          pageLimit,
+          query,
+          mode,
+          useSelenium,
+          autoPublish,
+          maxPosts,
+          config,
+        };
+      }
+
+      function targetLabel(t) {
+        try {
+          const u = new URL(t.baseUrl);
+          return u.hostname;
+        } catch {
+          return t.baseUrl || 'target';
+        }
+      }
+
+      function renderPresets() {
+        const select = el('presetSelect');
+        if (!select) return;
+        select.innerHTML = '';
+        for (const p of state.presets) {
+          const opt = document.createElement('option');
+          opt.value = p.id || '';
+          opt.textContent = p.label || p.id || 'preset';
+          select.appendChild(opt);
+        }
+        if (state.presets.length && !state.selectedPresetId) {
+          state.selectedPresetId = state.presets[0].id;
+        }
+        if (state.selectedPresetId) select.value = state.selectedPresetId;
+      }
+
+      function renderTargets() {
+        const grid = el('targetsGrid');
+        const meta = el('targetsMeta');
+        if (meta) meta.textContent = `${state.targets.length} target(s)`;
+        if (!grid) return;
+        grid.innerHTML = '';
+        for (let i = 0; i < state.targets.length; i++) {
+          const t = state.targets[i];
+          const card = document.createElement('div');
+          card.className =
+            'glass-card group relative overflow-hidden rounded-3xl border border-slate-800 p-6 transition hover:border-indigo-500/30';
+          card.innerHTML = `
+            <div class="mb-5 flex items-start justify-between gap-4">
+              <div class="min-w-0">
+                <div class="truncate text-lg font-black text-white">${targetLabel(t)}</div>
+                <div class="mt-1 truncate font-mono text-[10px] text-slate-500">${t.baseUrl || ''}</div>
+              </div>
+              <span class="rounded bg-slate-800 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-slate-200">${(t.mode || 'scrape').toUpperCase()}</span>
+            </div>
+            <div class="space-y-2 rounded-2xl border border-slate-900 bg-slate-950/40 p-4 text-xs">
+              <div class="flex justify-between"><span class="text-slate-500">Pages</span><span class="font-bold text-indigo-400">${t.pageLimit || 1}</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">Max Posts</span><span class="font-bold text-indigo-400">${t.maxPosts || 0}</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">Selenium</span><span class="font-bold text-indigo-400">${t.useSelenium ? 'On' : 'Off'}</span></div>
+            </div>
+            <div class="mt-5 flex gap-2">
+              <button data-action="run" class="flex-1 rounded-xl bg-emerald-600/10 py-3 text-xs font-bold text-emerald-400 transition hover:bg-emerald-600 hover:text-white">
+                <i class="fas fa-play mr-2"></i>RUN
+              </button>
+              <button data-action="edit" class="flex-1 rounded-xl bg-slate-800 py-3 text-xs font-bold transition hover:bg-slate-700">
+                EDIT
+              </button>
+              <button data-action="delete" class="rounded-xl bg-rose-600/10 p-3 text-rose-500 transition hover:bg-rose-600 hover:text-white">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          `;
+          card
+            .querySelector('[data-action="run"]')
+            .addEventListener('click', () => runTargets([t]));
+          card
+            .querySelector('[data-action="edit"]')
+            .addEventListener('click', () => openTargetModal(i));
+          card
+            .querySelector('[data-action="delete"]')
+            .addEventListener('click', () => deleteTarget(i));
+          grid.appendChild(card);
+        }
+      }
+
+      function openTargetModal(index) {
+        state.editingTargetIndex = typeof index === 'number' ? index : null;
+        const t =
+          typeof index === 'number' && state.targets[index]
+            ? state.targets[index]
+            : normalizeTarget({
+                baseUrl: '',
+                pageLimit: 1,
+                mode: 'scrape',
+                maxPosts: 0,
+                query: '',
+              });
+        el('targetBaseUrlInput').value = t.baseUrl || '';
+        el('targetNameInput').value = targetLabel(t) || '';
+        el('targetUseSeleniumToggle').checked = !!t.useSelenium;
+        el('targetAutoPublishToggle').checked = !!t.autoPublish;
+        el('targetConfigTextarea').value = JSON.stringify(
+          t.config || {},
+          null,
+          2,
+        );
+        if (el('targetScheduleSelect'))
+          el('targetScheduleSelect').value = 'none';
+        toggleModal('targetModal', true);
+      }
+
+      async function saveTargetFromModal() {
+        const baseUrl = String(el('targetBaseUrlInput').value || '').trim();
+        if (!baseUrl) {
+          notify('Base URL is required', 'error');
+          return;
+        }
+        const config =
+          safeJsonParse(el('targetConfigTextarea').value || '') || {};
+        const t = normalizeTarget({
+          baseUrl,
+          useSelenium: el('targetUseSeleniumToggle').checked,
+          autoPublish: el('targetAutoPublishToggle').checked,
+          config,
+        });
+        if (state.editingTargetIndex === null) state.targets.unshift(t);
+        else
+          state.targets[state.editingTargetIndex] = {
+            ...state.targets[state.editingTargetIndex],
+            ...t,
+          };
+
+        const sched = String(el('targetScheduleSelect')?.value || 'none');
+        if (sched !== 'none') {
+          const map = {
+            '15m': 15 * 60,
+            '30m': 30 * 60,
+            '1h': 60 * 60,
+            '2h': 2 * 60 * 60,
+            '6h': 6 * 60 * 60,
+            '12h': 12 * 60 * 60,
+            '24h': 24 * 60 * 60,
+          };
+          const intervalSeconds = map[sched];
+          if (intervalSeconds) {
+            try {
+              await apiSend('/api/jobs', 'POST', {
+                name: String(el('targetNameInput')?.value || targetLabel(t)),
+                intervalSeconds,
+                targets: [t],
+              });
+              await refreshJobs();
+            } catch (e) {
+              notify(String(e.message || e), 'error');
+            }
+          }
+        }
+
+        toggleModal('targetModal', false);
+        state.editingTargetIndex = null;
+        renderTargets();
+        notify('Target saved', 'success');
+      }
+
+      function deleteTarget(index) {
+        state.targets.splice(index, 1);
+        renderTargets();
+        notify('Target removed', 'success');
+      }
+
+      async function runTargets(targets) {
+        if (!targets || targets.length === 0) {
+          notify('No targets to run', 'error');
+          return;
+        }
+        try {
+          const r = await apiSend('/api/runs', 'POST', { targets });
+          const runId = r?.data?.runId || '';
+          if (runId) state.selectedRunId = runId;
+          notify(runId ? `Run accepted ${runId}` : 'Run accepted', 'success');
+          switchTab('active-runs');
+          await refreshRuns();
+          await refreshProgress();
+          await refreshLog();
+        } catch (e) {
+          notify(String(e.message || e), 'error');
+        }
+      }
+
+      async function runAllTargets(ev) {
+        const btn = ev?.currentTarget;
+        const original = btn?.innerHTML;
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML =
+            '<i class="fas fa-circle-notch fa-spin mr-2"></i> STARTING...';
+        }
+        try {
+          await runTargets(state.targets);
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML =
+              original || '<i class="fas fa-play mr-2"></i> RUN ALL TARGETS';
+          }
+        }
+      }
+
+      function renderSchedules() {
+        const grid = el('schedulesGrid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        for (const j of state.jobs) {
+          const jobId = j.id;
+          const enabled = !!j.enabled;
+          const interval = j.interval_seconds;
+          const freq =
+            interval && Number(interval) > 0
+              ? `Every ${Math.round(Number(interval) / 60)} Minutes`
+              : j.run_at
+                ? `At ${j.run_at}`
+                : 'Manual';
+          const card = document.createElement('div');
+          card.className =
+            'glass-card group relative rounded-3xl border border-slate-800 p-6';
+          card.innerHTML = `
+            <div class="mb-6 flex items-start justify-between">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600/10 text-indigo-500">
+                <i class="fas fa-clock text-xl"></i>
+              </div>
+              <div class="text-right">
+                <span class="rounded ${enabled ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-800 text-slate-300'} px-2 py-1 text-[10px] font-black uppercase tracking-widest">
+                  ${enabled ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+            </div>
+            <h4 class="truncate text-lg font-bold">${j.name || jobId}</h4>
+            <div class="mt-4 space-y-3 rounded-2xl border border-slate-900 bg-slate-950 p-4">
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-500">Frequency</span>
+                <span class="font-bold text-indigo-400">${freq}</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-500">Next Run</span>
+                <span class="truncate pl-4 text-slate-300">${j.next_run_at || '-'}</span>
+              </div>
+            </div>
+            <div class="mt-6 flex gap-2">
+              <button data-action="run" class="flex-1 rounded-xl bg-emerald-600/10 py-3 text-xs font-bold text-emerald-400 transition hover:bg-emerald-600 hover:text-white">
+                <i class="fas fa-play mr-2"></i>RUN
+              </button>
+              <button data-action="delete" class="rounded-xl bg-rose-600/10 p-3 text-rose-500 transition hover:bg-rose-600 hover:text-white">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          `;
+          card
+            .querySelector('[data-action="run"]')
+            .addEventListener('click', () => runJob(jobId));
+          card
+            .querySelector('[data-action="delete"]')
+            .addEventListener('click', () => deleteJob(jobId));
+          grid.appendChild(card);
+        }
+      }
+
+      async function refreshJobs() {
+        try {
+          const r = await apiGet('/api/jobs');
+          state.jobs = r.data || [];
+          renderSchedules();
+        } catch (e) {
+          notify(String(e.message || e), 'error');
+        }
+      }
+
+      async function runJob(jobId) {
+        try {
+          const r = await apiSend(
+            `/api/jobs/${encodeURIComponent(jobId)}/run`,
+            'POST',
+            {},
+          );
+          const runId = r?.data?.runId || '';
+          if (runId) state.selectedRunId = runId;
+          notify(
+            runId ? `Job run accepted ${runId}` : 'Job run accepted',
+            'success',
+          );
+          switchTab('active-runs');
+          await refreshRuns();
+        } catch (e) {
+          notify(String(e.message || e), 'error');
+        }
+      }
+
+      async function deleteJob(jobId) {
+        try {
+          await apiSend(`/api/jobs/${encodeURIComponent(jobId)}`, 'DELETE');
+          notify('Job deleted', 'success');
+          await refreshJobs();
+        } catch (e) {
+          notify(String(e.message || e), 'error');
+        }
+      }
+
+      function renderRunsSelect() {
+        const sel = el('resultsRunSelect');
+        if (!sel) return;
+        sel.innerHTML = '';
+        for (const r of state.runs) {
+          const opt = document.createElement('option');
+          opt.value = r.id;
+          opt.textContent = `${r.status || 'run'} · ${r.id}`;
+          sel.appendChild(opt);
+        }
+        if (!state.selectedRunId && state.runs.length)
+          state.selectedRunId = state.runs[0].id;
+        if (state.selectedRunId) sel.value = state.selectedRunId;
+      }
+
+      async function refreshRuns() {
+        try {
+          const r = await apiGet('/api/runs');
+          state.runs = r.data || [];
+          renderRunsSelect();
+          if (state.selectedRunId) await loadRunPosts(state.selectedRunId);
+        } catch (e) {
+          notify(String(e.message || e), 'error');
+        }
+      }
+
+      function extractPostsFromRun(run) {
+        const result = run?.result;
+        if (!result || typeof result !== 'object') return [];
+        const targets = result.targets;
+        if (!Array.isArray(targets)) return [];
+        const posts = [];
+        for (const t of targets) {
+          if (t && Array.isArray(t.posts)) posts.push(...t.posts);
+        }
+        return posts;
+      }
+
+      function renderResultsGrid() {
+        const grid = el('resultsGrid');
+        const meta = el('resultsMeta');
+        if (!grid) return;
+        const posts = state.selectedRunPosts || [];
+        if (meta)
+          meta.innerHTML = `<i class="fas fa-info-circle mr-1"></i> Showing ${posts.length} results`;
+        grid.innerHTML = '';
+        for (const p of posts) {
+          const title = String(p.title || p.caption || 'Untitled');
+          const link = String(p.link || '');
+          const imageUrl = String(p.image_url || '');
+          let sourceLabel = '';
+          try {
+            sourceLabel = link ? new URL(link).hostname : '';
+          } catch {
+            sourceLabel = '';
+          }
+          sourceLabel = (
+            sourceLabel ||
+            String(p.baseUrl || '') ||
+            'source'
+          ).toUpperCase();
+          const description = String(
+            p.meta_description || p.og_description || '',
+          ).trim();
+          const tags = Array.isArray(p.slinks_texts)
+            ? p.slinks_texts.slice(0, 6)
+            : [];
+          const card = document.createElement('div');
+          card.className =
+            'glass-card post-card group overflow-hidden rounded-3xl border border-slate-800 transition-all duration-300 hover:border-indigo-500/50';
+          card.innerHTML = `
+            <div class="relative h-48 overflow-hidden bg-slate-950">
+              ${imageUrl ? `<img src="${imageUrl}" alt="post" class="h-full w-full object-cover transition duration-500 group-hover:scale-110" />` : `<div class="flex h-full w-full items-center justify-center text-xs text-slate-600">No thumbnail</div>`}
+              <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+              <div class="absolute bottom-4 left-4 right-4">
+                <span class="mb-2 inline-block rounded bg-indigo-600 px-2 py-1 text-[10px] font-black">${sourceLabel}</span>
+                <h4 class="line-clamp-2 text-sm font-bold text-white">${title}</h4>
+              </div>
+            </div>
+            <div class="space-y-3 p-5">
+              <p class="line-clamp-2 text-xs italic text-slate-400">${description || ''}</p>
+              <div class="flex flex-wrap gap-1">
+                ${tags.map((t) => `<span class="rounded-full bg-slate-800 px-2 py-0.5 text-[9px] text-slate-400">${String(t)}</span>`).join('')}
+              </div>
+              <div class="flex items-center justify-between border-t border-slate-800 pt-3 font-mono text-[10px]">
+                <span class="text-slate-500">${p.fetchedAt || ''}</span>
+                ${link ? `<a href="${link}" target="_blank" rel="noopener noreferrer" class="text-indigo-400 hover:underline">View Source <i class="fas fa-external-link-alt ml-1"></i></a>` : `<span class="text-slate-600">No link</span>`}
+              </div>
+            </div>
+          `;
+          grid.appendChild(card);
+        }
+      }
+
+      async function loadRunPosts(runId) {
+        if (!runId) return;
+        try {
+          const r = await apiGet(`/api/runs/${encodeURIComponent(runId)}`);
+          state.selectedRunId = runId;
+          state.selectedRunPosts = extractPostsFromRun(r.data);
+          renderResultsGrid();
+        } catch (e) {
+          state.selectedRunPosts = [];
+          renderResultsGrid();
+        }
+      }
+
+      function downloadCsv() {
+        const posts = state.selectedRunPosts || [];
+        const headers = [
+          'title',
+          'link',
+          'video_src',
+          'image_url',
+          'meta_description',
+          'og_title',
+          'og_description',
+        ];
+        const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+        const rows = [headers.join(',')];
+        for (const p of posts) {
+          rows.push(headers.map((h) => esc(p[h])).join(','));
+        }
+        const blob = new Blob([rows.join('\n')], {
+          type: 'text/csv;charset=utf-8',
+        });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `run_${state.selectedRunId || 'results'}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+
+      async function deleteSelectedRun() {
+        if (!state.selectedRunId) return;
+        try {
+          await apiSend(
+            `/api/runs/${encodeURIComponent(state.selectedRunId)}`,
+            'DELETE',
+          );
+          notify('Run deleted', 'success');
+          state.selectedRunId = '';
+          state.selectedRunPosts = [];
+          await refreshRuns();
+        } catch (e) {
+          notify(String(e.message || e), 'error');
+        }
+      }
+
+      async function refreshProgress() {
+        try {
+          const r = await apiGet('/progress');
+          const pr = r.data || {};
+          const running = !!pr.running;
+          const runId = String(pr.runId || state.selectedRunId || '');
+          const baseUrl = String(pr.baseUrl || pr.base_url || '');
+          el('liveBaseUrl').textContent = baseUrl
+            ? targetLabel({ baseUrl })
+            : 'Idle';
+          el('liveRunId').textContent = runId ? `RUN_ID: ${runId}` : '';
+          el('liveStatus').textContent = running
+            ? String(pr.phase || 'running').replace(/_/g, ' ')
+            : 'Idle';
+          el('livePing').classList.toggle('hidden', !running);
+          const pagesCompleted = Number(
+            pr.pagesCompleted ?? pr.pages_completed ?? pr.page ?? 0,
+          );
+          const pageLimit = Number(
+            pr.pageLimit ??
+              pr.page_limit ??
+              pr.pagesTarget ??
+              pr.page_limit ??
+              0,
+          );
+          const pct =
+            pageLimit > 0
+              ? Math.max(
+                  0,
+                  Math.min(100, Math.round((pagesCompleted / pageLimit) * 100)),
+                )
+              : running
+                ? 1
+                : 0;
+          el('livePercent').textContent = `${pct}%`;
+          el('liveBar').style.width = `${pct}%`;
+          el('livePageText').textContent =
+            pageLimit > 0 ? `Page ${pagesCompleted} of ${pageLimit}` : '';
+          el('livePhaseText').textContent = pr.phase
+            ? `Phase: ${String(pr.phase).replace(/_/g, ' ')}`
+            : '';
+          el('liveProcessed').textContent = String(
+            pr.postsProcessed ??
+              pr.posts_processed ??
+              pr.postsFound ??
+              pr.posts_found ??
+              0,
+          );
+          el('liveNewItems').textContent = String(
+            pr.newItems ?? pr.new_items ?? '-',
+          );
+          el('liveSkipped').textContent = String(
+            pr.skipped ?? pr.skippedCount ?? 0,
+          );
+          el('liveCurrentUrl').textContent = String(
+            pr.currentPostUrl || pr.current_url || pr.url || '',
+          );
+          if (!runId) {
+            el('stopRunBtn').classList.add('opacity-40');
+          } else {
+            el('stopRunBtn').classList.remove('opacity-40');
+          }
+        } catch {
+          el('liveBaseUrl').textContent = 'Idle';
+          el('liveRunId').textContent = '';
+          el('liveStatus').textContent = 'Idle';
+          el('livePing').classList.add('hidden');
+          el('livePercent').textContent = '0%';
+          el('liveBar').style.width = '0%';
+          el('livePageText').textContent = '';
+          el('livePhaseText').textContent = '';
+          el('liveProcessed').textContent = '0';
+          el('liveNewItems').textContent = '-';
+          el('liveSkipped').textContent = '0';
+          el('liveCurrentUrl').textContent = '';
+        }
+      }
+
+      async function refreshLog() {
+        try {
+          const r = await fetch('/scraper-live.log', { cache: 'no-store' });
+          el('liveLog').textContent = await r.text();
+        } catch {
+          el('liveLog').textContent = '';
+        }
+      }
+
+      async function stopCurrentRun() {
+        try {
+          const pr = await apiGet('/progress');
+          const runId = String(
+            pr?.data?.runId || state.selectedRunId || '',
+          ).trim();
+          if (!runId) {
+            notify('No active runId to stop', 'error');
+            return;
+          }
+          await apiSend(
+            `/api/runs/${encodeURIComponent(runId)}/stop`,
+            'POST',
+            {},
+          );
+          notify(`Stop requested ${runId}`, 'success');
+          await refreshProgress();
+          await refreshRuns();
+        } catch (e) {
+          notify(String(e.message || e), 'error');
+        }
+      }
+
+      async function importPresetFromModal() {
+        const raw = String(el('importPresetTextarea')?.value || '').trim();
+        if (!raw) {
+          notify('Paste JSON first', 'error');
+          return;
+        }
+        const parsed = safeJsonParse(raw);
+        if (!parsed) {
+          notify('Invalid JSON', 'error');
+          return;
+        }
+        let targets = [];
+        if (Array.isArray(parsed)) targets = parsed;
+        else if (Array.isArray(parsed.targets)) targets = parsed.targets;
+        else if (Array.isArray(parsed.recommendedTargets))
+          targets = parsed.recommendedTargets;
+        else if (Array.isArray(parsed.data)) targets = parsed.data;
+        state.targets = (targets || [])
+          .map(normalizeTarget)
+          .filter((t) => t.baseUrl);
+        if (state.targets.length === 0) state.targets = [];
+        renderTargets();
+        toggleModal('importModal', false);
+        notify('Configuration imported', 'success');
+      }
+
+      function attachHandlers() {
+        el('loadPresetBtn')?.addEventListener('click', () => {
+          const presetId = String(el('presetSelect')?.value || '').trim();
+          state.selectedPresetId = presetId;
+          const p = state.presets.find((x) => x.id === presetId);
+          const targets = (p?.recommendedTargets || [])
+            .map(normalizeTarget)
+            .filter((t) => t.baseUrl);
+          state.targets = targets;
+          renderTargets();
+          notify('Preset loaded', 'success');
+        });
+
+        el('importPresetBtn')?.addEventListener('click', () =>
+          toggleModal('importModal', true),
+        );
+        el('applyImportBtn')?.addEventListener('click', importPresetFromModal);
+        el('saveTargetBtn')?.addEventListener('click', saveTargetFromModal);
+        el('stopRunBtn')?.addEventListener('click', stopCurrentRun);
+        el('reloadLogBtn')?.addEventListener('click', refreshLog);
+        el('downloadCsvBtn')?.addEventListener('click', downloadCsv);
+        el('deleteRunBtn')?.addEventListener('click', deleteSelectedRun);
+        el('resultsRunSelect')?.addEventListener('change', async (e) => {
+          const v = String(e.target.value || '');
+          await loadRunPosts(v);
+        });
+      }
+
+      async function init() {
+        attachHandlers();
+        try {
+          const r = await apiGet('/api/presets');
+          state.presets = r.data || [];
+          state.selectedPresetId = state.presets[0]?.id || '';
+          renderPresets();
+          const p = state.presets.find((x) => x.id === state.selectedPresetId);
+          state.targets = (p?.recommendedTargets || [])
+            .map(normalizeTarget)
+            .filter((t) => t.baseUrl);
+          renderTargets();
+        } catch (e) {
+          notify(String(e.message || e), 'error');
+        }
+        await refreshRuns();
+        await refreshJobs();
+        await refreshProgress();
+        await refreshLog();
+        window.setInterval(refreshProgress, 1200);
+        window.setInterval(refreshLog, 2500);
+        window.setInterval(refreshRuns, 4000);
+        window.setInterval(refreshJobs, 8000);
+      }
+
+      init();
 
       // Outside click to close modals
       window.onclick = function (event) {

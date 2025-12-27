@@ -1865,6 +1865,12 @@ def run_flask_server():
 
     @app.get('/')
     def ui_index():
+        try:
+            ui_path = os.path.join(os.path.dirname(__file__), 'scraper-ui.html')
+            with open(ui_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        except Exception:
+            pass
         preset_json = json.dumps(presets(), ensure_ascii=False)
         return f"""<!doctype html>
 <html lang="en">
