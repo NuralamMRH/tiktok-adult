@@ -175,28 +175,40 @@ async function fetchVideoBuffer(url, referer) {
   const videoUrl = String(url || '');
   const internal = pickScraperInternalUrl();
   const ref = String(referer || '').trim();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-  if (internal) {
-    const proxyUrl = new URL('/api/media', internal);
-    proxyUrl.searchParams.set('url', videoUrl);
-    if (ref) proxyUrl.searchParams.set('referer', ref);
-    try {
-      const pr = await fetch(String(proxyUrl), { redirect: 'follow' });
-      if (!pr.ok) throw new Error(`proxy fetch failed ${pr.status}`);
-      const buf = await pr.arrayBuffer();
-      const contentType = pr.headers.get('content-type') || 'video/mp4';
-      return { buf, contentType };
-    } catch (_) {}
+  try {
+    if (internal) {
+      const proxyUrl = new URL('/api/media', internal);
+      proxyUrl.searchParams.set('url', videoUrl);
+      if (ref) proxyUrl.searchParams.set('referer', ref);
+      try {
+        const pr = await fetch(String(proxyUrl), {
+          redirect: 'follow',
+          signal: controller.signal,
+        });
+        if (!pr.ok) throw new Error(`proxy fetch failed ${pr.status}`);
+        const buf = await pr.arrayBuffer();
+        const contentType = pr.headers.get('content-type') || 'video/mp4';
+        return { buf, contentType };
+      } catch (e) {
+        if (e.name === 'AbortError') throw new Error('video fetch timeout');
+      }
+    }
+
+    const res = await fetch(videoUrl, {
+      redirect: 'follow',
+      headers: buildVideoFetchHeaders({ videoUrl, referer: ref }),
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`video fetch failed ${res.status}`);
+    const buf = await res.arrayBuffer();
+    const contentType = res.headers.get('content-type') || 'video/mp4';
+    return { buf, contentType };
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  const res = await fetch(videoUrl, {
-    redirect: 'follow',
-    headers: buildVideoFetchHeaders({ videoUrl, referer: ref }),
-  });
-  if (!res.ok) throw new Error(`video fetch failed ${res.status}`);
-  const buf = await res.arrayBuffer();
-  const contentType = res.headers.get('content-type') || 'video/mp4';
-  return { buf, contentType };
 }
 
 async function uploadVideoAsset(client, url, { referer } = {}) {
@@ -204,6 +216,10 @@ async function uploadVideoAsset(client, url, { referer } = {}) {
   try {
     payload = await fetchVideoBuffer(url, pickRefererForUrl(url, referer));
   } catch (e1) {
+    const msg = String(e1?.message || '');
+    // Don't retry on 404 or timeout
+    if (msg.includes('404') || msg.includes('timeout')) throw e1;
+
     const fallbackRef = safeOrigin(url);
     const originalRef = String(referer || '').trim();
     if (fallbackRef && fallbackRef !== originalRef) {
@@ -475,59 +491,64 @@ async function publishPostsToSanity(posts, opts = {}) {
   let failed = 0;
   const failedSamples = [];
 
-  for (const p of posts || []) {
-    try {
-      if (!p || !p.link) continue;
-      const sourceLink = p.link;
-      const existing = await findExistingPost(client, sourceLink);
-      if (existing && existing._id) {
-        skipped++;
-        continue;
+  await Promise.all(
+    (posts || []).map(async (p) => {
+      try {
+        if (!p || !p.link) return;
+        const sourceLink = p.link;
+        const existing = await findExistingPost(client, sourceLink);
+        if (existing && existing._id) {
+          skipped++;
+          return;
+        }
+        const videoUrl = p.video_src || p.video_url;
+        if (!videoUrl) return;
+        const owner = pick(autoUsers);
+        const asset = await uploadVideoAsset(client, videoUrl, {
+          referer: sourceLink,
+        });
+        const likeCount = pickLikeCount();
+        const likeDocCount = clampInt(
+          Math.round(likeCount * (0.002 + Math.random() * 0.012)),
+          0,
+          Math.min(140, autoUsers.length * 4),
+        );
+        const likeRefs = Array.from({ length: likeDocCount }).map(() => {
+          const u = pick(autoUsers);
+          return { _key: randomId(), _ref: u._id, _type: 'postedBy' };
+        });
+        const commentCount = pickCommentCountFromLikes(likeCount);
+        const doc = {
+          _id: postIdForSourceLink(sourceLink),
+          _type: 'post',
+          caption: clean(p.title),
+          sourceLink,
+          imageUrl: p.image_url || '',
+          video: {
+            _type: 'file',
+            asset: { _type: 'reference', _ref: asset._id },
+          },
+          likeCount,
+          userId: owner._id,
+          postedBy: { _type: 'postedBy', _ref: owner._id },
+          likes: likeRefs,
+          comments: buildComments(autoUsers, p, commentCount),
+          topic: (p.slinks_texts && p.slinks_texts[0]) || '',
+        };
+        await client.createIfNotExists(doc);
+        posted++;
+      } catch (e) {
+        failed++;
+        if (failedSamples.length < 8) {
+          const msg = String(e && e.message ? e.message : e || '').slice(
+            0,
+            220,
+          );
+          failedSamples.push({ link: p?.link || '', error: msg });
+        }
       }
-      const videoUrl = p.video_src || p.video_url;
-      if (!videoUrl) continue;
-      const owner = pick(autoUsers);
-      const asset = await uploadVideoAsset(client, videoUrl, {
-        referer: sourceLink,
-      });
-      const likeCount = pickLikeCount();
-      const likeDocCount = clampInt(
-        Math.round(likeCount * (0.002 + Math.random() * 0.012)),
-        0,
-        Math.min(140, autoUsers.length * 4),
-      );
-      const likeRefs = Array.from({ length: likeDocCount }).map(() => {
-        const u = pick(autoUsers);
-        return { _key: randomId(), _ref: u._id, _type: 'postedBy' };
-      });
-      const commentCount = pickCommentCountFromLikes(likeCount);
-      const doc = {
-        _id: postIdForSourceLink(sourceLink),
-        _type: 'post',
-        caption: clean(p.title),
-        sourceLink,
-        imageUrl: p.image_url || '',
-        video: {
-          _type: 'file',
-          asset: { _type: 'reference', _ref: asset._id },
-        },
-        likeCount,
-        userId: owner._id,
-        postedBy: { _type: 'postedBy', _ref: owner._id },
-        likes: likeRefs,
-        comments: buildComments(autoUsers, p, commentCount),
-        topic: (p.slinks_texts && p.slinks_texts[0]) || '',
-      };
-      await client.createIfNotExists(doc);
-      posted++;
-    } catch (e) {
-      failed++;
-      if (failedSamples.length < 8) {
-        const msg = String(e && e.message ? e.message : e || '').slice(0, 220);
-        failedSamples.push({ link: p?.link || '', error: msg });
-      }
-    }
-  }
+    }),
+  );
 
   return { posted, skipped, failed, failedSamples };
 }
