@@ -2149,7 +2149,7 @@ def run_flask_server():
         }};
         wrap.querySelector('[data-act="run-one"]').onclick = async () => {{
           notify('starting run (single target)...', 'info');
-          const r = await apiPost('/api/runs', {{ targets: [serializeTarget(t)] }});
+          const r = await apiPost('api/runs', {{ targets: [serializeTarget(t)] }});
           if (r.ok && r.data?.runId) {{
             notify('run accepted ' + r.data.runId, 'success');
             await refreshRuns();
@@ -2343,7 +2343,7 @@ def run_flask_server():
       }}
 
       async function refreshRuns() {{
-        const r = await apiGet('/api/runs');
+        const r = await apiGet('api/runs');
         const rows = r.data || [];
         const list = el('runs');
         list.innerHTML = '';
@@ -2378,7 +2378,7 @@ def run_flask_server():
             stopBtn.className = 'secondary';
             stopBtn.textContent = 'Stop';
             stopBtn.onclick = async () => {{
-              const rr = await apiPost('/api/runs/' + x.id + '/stop', {{}});
+              const rr = await apiPost('api/runs/' + x.id + '/stop', {{}});
               notify(rr.ok ? 'stop requested' : ('stop failed ' + (rr.error || '')), rr.ok ? 'success' : 'error');
               await refreshRuns();
             }};
@@ -2395,7 +2395,7 @@ def run_flask_server():
           delBtn.disabled = x.status === 'running';
           delBtn.onclick = async () => {{
             if (!confirm('Delete run?')) return;
-            const rr = await apiDelete('/api/runs/' + x.id);
+            const rr = await apiDelete('api/runs/' + x.id);
             notify(rr.ok ? 'run deleted' : ('run delete failed ' + (rr.error || '')), rr.ok ? 'success' : 'error');
             if (rr.ok && state.selectedRunId === x.id) {{
               state.selectedRunId = '';
@@ -2416,7 +2416,7 @@ def run_flask_server():
       }}
 
       async function refreshJobs() {{
-        const r = await apiGet('/api/jobs');
+        const r = await apiGet('api/jobs');
         const rows = r.data || [];
         const list = el('jobs');
         list.innerHTML = '';
@@ -2440,7 +2440,7 @@ def run_flask_server():
           runBtn.className = 'secondary';
           runBtn.textContent = 'Run';
           runBtn.onclick = async () => {{
-            const rr = await apiPost('/api/jobs/' + x.id + '/run', {{}});
+            const rr = await apiPost('api/jobs/' + x.id + '/run', {{}});
             notify(rr.ok ? ('job run accepted ' + (rr.data?.runId || '')) : ('job run failed ' + (rr.error || '')), rr.ok ? 'success' : 'error');
             await refreshRuns();
           }};
@@ -2464,7 +2464,7 @@ def run_flask_server():
           delBtn.textContent = 'Delete';
           delBtn.onclick = async () => {{
             if (!confirm('Delete job?')) return;
-            const rr = await apiDelete('/api/jobs/' + x.id);
+            const rr = await apiDelete('api/jobs/' + x.id);
             notify(rr.ok ? 'job deleted' : ('job delete failed ' + (rr.error || '')), rr.ok ? 'success' : 'error');
             if (rr.ok && state.editJobId === x.id) {{
               state.editJobId = '';
@@ -2485,7 +2485,7 @@ def run_flask_server():
       }}
 
       async function loadRun(id) {{
-        const r = await apiGet('/api/runs/' + id);
+        const r = await apiGet('api/runs/' + id);
         state.selectedRun = r.data || null;
         const result = state.selectedRun?.result || null;
         el('result').value = result ? JSON.stringify(result, null, 2) : JSON.stringify(state.selectedRun, null, 2);
@@ -2533,7 +2533,7 @@ def run_flask_server():
 
       async function loadLog() {{
         try {{
-          const r = await fetch('/scraper-live.log', {{ cache: 'no-store' }});
+          const r = await fetch('scraper-live.log', {{ cache: 'no-store' }});
           el('log').textContent = await r.text();
         }} catch {{
           el('log').textContent = '';
@@ -2542,7 +2542,7 @@ def run_flask_server():
 
       async function loadProgress() {{
         try {{
-          const r = await apiGet('/progress');
+          const r = await apiGet('progress');
           el('progress').textContent = JSON.stringify(r.data || {{}}, null, 2);
         }} catch {{
           el('progress').textContent = '';
@@ -2618,7 +2618,7 @@ def run_flask_server():
 
       el('runNow').onclick = async () => {{
         notify('starting run...', 'info');
-        const r = await apiPost('/api/runs', {{ targets: serializeTargets() }});
+        const r = await apiPost('api/runs', {{ targets: serializeTargets() }});
         if (r.ok && r.data?.runId) {{
           notify('run accepted ' + r.data.runId, 'success');
           await refreshRuns();
@@ -2630,7 +2630,7 @@ def run_flask_server():
 
       el('runAllJobs').onclick = async () => {{
         notify('running all jobs...', 'info');
-        const jr = await apiGet('/api/jobs');
+        const jr = await apiGet('api/jobs');
         const jobs = Array.isArray(jr.data) ? jr.data : [];
         if (!jobs.length) {{
           notify('no jobs found', 'error');
@@ -2639,7 +2639,7 @@ def run_flask_server():
         let okCount = 0;
         let failCount = 0;
         for (const j of jobs) {{
-          const rr = await apiPost('/api/jobs/' + j.id + '/run', {{}});
+          const rr = await apiPost('api/jobs/' + j.id + '/run', {{}});
           if (rr.ok) okCount++;
           else failCount++;
         }}
@@ -2655,7 +2655,7 @@ def run_flask_server():
         const payload = {{ name, intervalSeconds, runAt, targets: serializeTargets() }};
         if (state.editJobId) {{
           notify('saving job...', 'info');
-          const r = await apiPost('/api/jobs/' + state.editJobId, payload);
+          const r = await apiPost('api/jobs/' + state.editJobId, payload);
           notify(r.ok ? 'job updated' : ('job update failed ' + (r.error || '')), r.ok ? 'success' : 'error');
           if (r.ok) {{
             state.editJobId = '';
@@ -2663,7 +2663,7 @@ def run_flask_server():
           }}
         }} else {{
           notify('creating job...', 'info');
-          const r = await apiPost('/api/jobs', payload);
+          const r = await apiPost('api/jobs', payload);
           notify(r.ok ? ('job created ' + (r.data?.id || '')) : ('job create failed ' + (r.error || '')), r.ok ? 'success' : 'error');
         }}
         await refreshJobs();
@@ -3132,6 +3132,46 @@ def run_flask_server():
         conn.commit()
         conn.close()
         return jsonify({'ok': True})
+
+    @app.post('/api/runs/<run_id>/mark-published')
+    def runs_mark_published(run_id):
+        data = request.get_json(silent=True) or {}
+        links = set(data.get('links') or [])
+        if not links:
+             return jsonify({'ok': True, 'count': 0})
+        
+        row = get_run_row(run_id)
+        if not row:
+            return jsonify({'ok': False, 'error': 'not_found'}), 404
+        
+        # Load result_json
+        result = None
+        try:
+            result = json.loads(row['result_json'] or '{}')
+        except:
+            result = {}
+        
+        updated_count = 0
+        targets = result.get('targets')
+        if isinstance(targets, list):
+            for t in targets:
+                if isinstance(t, dict):
+                    posts = t.get('posts')
+                    if isinstance(posts, list):
+                        for p in posts:
+                            if isinstance(p, dict) and p.get('link') in links:
+                                if not p.get('published'):
+                                    p['published'] = True
+                                    updated_count += 1
+        
+        if updated_count > 0:
+            conn = db()
+            cur = conn.cursor()
+            cur.execute("UPDATE runs SET result_json=? WHERE id=?", (json_dumps(result), run_id))
+            conn.commit()
+            conn.close()
+            
+        return jsonify({'ok': True, 'count': updated_count})
 
     @app.get('/<path:filename>')
     def get_file(filename):

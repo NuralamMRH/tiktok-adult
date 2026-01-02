@@ -43,6 +43,7 @@ interface Props {
   setShowLoginModal: Dispatch<SetStateAction<boolean>>;
   setShowDeleteModal: Dispatch<SetStateAction<boolean>>;
   onShowComments?: () => void;
+  onActionIntercept: () => boolean;
 }
 
 interface ShareLinkProps {
@@ -50,6 +51,7 @@ interface ShareLinkProps {
   name: string;
   POST_URL: string;
   caption: string;
+  onClick?: () => void;
 }
 
 type FFmpegProgressEvent = {
@@ -75,28 +77,47 @@ async function getFFmpeg(onProgress?: (progress: number) => void) {
 
       const ffmpeg = new FFmpeg();
 
-      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
-      await ffmpeg.load({
-        coreURL: await toBlobURL(
-          `${baseURL}/ffmpeg-core.js`,
-          'text/javascript',
-        ),
-        wasmURL: await toBlobURL(
-          `${baseURL}/ffmpeg-core.wasm`,
-          'application/wasm',
-        ),
-        workerURL: await toBlobURL(
-          `${baseURL}/ffmpeg-core.worker.js`,
-          'text/javascript',
-        ),
-      });
+      const baseURL =
+        'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
+      try {
+        await ffmpeg.load({
+          coreURL: await toBlobURL(
+            `${baseURL}/ffmpeg-core.js`,
+            'text/javascript',
+          ),
+          wasmURL: await toBlobURL(
+            `${baseURL}/ffmpeg-core.wasm`,
+            'application/wasm',
+          ),
+        });
+      } catch {
+        const fallbackBaseURL =
+          'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd';
+        await ffmpeg.load({
+          coreURL: await toBlobURL(
+            `${fallbackBaseURL}/ffmpeg-core.js`,
+            'text/javascript',
+          ),
+          wasmURL: await toBlobURL(
+            `${fallbackBaseURL}/ffmpeg-core.wasm`,
+            'application/wasm',
+          ),
+        });
+      }
 
       ffmpegInstance = ffmpeg;
       return ffmpeg;
     })();
   }
 
-  const ffmpeg = (await ffmpegLoadPromise) as any;
+  let ffmpeg: any;
+  try {
+    ffmpeg = (await ffmpegLoadPromise) as any;
+  } catch (e) {
+    ffmpegLoadPromise = null;
+    ffmpegInstance = null;
+    throw e;
+  }
 
   if (onProgress) {
     ffmpeg.on('progress', ({ progress }: FFmpegProgressEvent) => {
@@ -107,11 +128,16 @@ async function getFFmpeg(onProgress?: (progress: number) => void) {
   return ffmpeg;
 }
 
-function ShareLink({ src, name, POST_URL, caption }: ShareLinkProps) {
+function ShareLink({ src, name, POST_URL, caption, onClick }: ShareLinkProps) {
   return (
     <Link
       target='_blank'
       href={shareVia(name, POST_URL, caption)!}
+      onClick={(e) => {
+        if (onClick && onClick()) {
+          e.preventDefault();
+        }
+      }}
       className='flex cursor-pointer items-center px-4 py-2 hover:bg-gray-200 dark:hover:bg-darkBtnHover'
     >
       <Image
@@ -139,6 +165,7 @@ export default function Reaction({
   setShowLoginModal,
   setShowDeleteModal,
   onShowComments,
+  onActionIntercept,
 }: Props) {
   const { postedBy } = video;
 
@@ -176,11 +203,13 @@ export default function Reaction({
   function sanitizeUrl(u: string) {
     if (!u) return '';
     const s = u.trim().replace(/[)]+$/g, '');
+    if (s.includes('images.pexels.com/')) return '/blur-img-light.jpg';
     return s;
   }
 
   async function downloadHandler(e: MouseEvent) {
     e.stopPropagation();
+    if (onActionIntercept()) return;
 
     if (isDownloading) return;
 
@@ -325,6 +354,8 @@ export default function Reaction({
 
   async function followHandler(e: MouseEvent) {
     e.stopPropagation();
+    if (onActionIntercept()) return;
+
     if (!user) return setShowLoginModal(true);
 
     const obj = { userId: user._id, creatorId: postedBy?._id };
@@ -371,7 +402,10 @@ export default function Reaction({
       {isCreator ? (
         <div className='flex flex-col items-center'>
           <button
-            onClick={() => setShowDeleteModal(true)}
+            onClick={() => {
+              if (onActionIntercept()) return;
+              setShowDeleteModal(true);
+            }}
             className={`reaction-btn mb-2`}
           >
             <MdDelete size={25} color='red' />
@@ -380,7 +414,13 @@ export default function Reaction({
       ) : (
         <div className='relative mb-4'>
           <Link
-            onClick={keepScrollBeforeNavigate}
+            onClick={(e) => {
+              if (onActionIntercept()) {
+                e.preventDefault();
+                return;
+              }
+              keepScrollBeforeNavigate();
+            }}
             href={`/profile/${postedBy._id}`}
             className='flex h-14 w-14 flex-col items-center overflow-hidden rounded-full'
           >
@@ -424,7 +464,10 @@ export default function Reaction({
       {/* like */}
       <div className='flex flex-col items-center'>
         <button
-          onClick={likeUnlikeHandler}
+          onClick={() => {
+            if (onActionIntercept()) return;
+            likeUnlikeHandler();
+          }}
           disabled={liking}
           className={`reaction-btn ${
             isAlreadyLike ? 'text-primary dark:text-primary' : ''
@@ -439,7 +482,10 @@ export default function Reaction({
       <div className='flex flex-col items-center'>
         <button
           className='reaction-btn'
-          onClick={() => onShowComments && onShowComments()}
+          onClick={() => {
+            if (onActionIntercept()) return;
+            onShowComments && onShowComments();
+          }}
           aria-label='show-comments'
         >
           <RiMessage2Fill size={22} />
@@ -451,7 +497,10 @@ export default function Reaction({
       <div className='flex flex-col items-center'>
         <button
           className='reaction-btn'
-          onClick={handleMute}
+          onClick={(e) => {
+            if (onActionIntercept()) return;
+            handleMute(e);
+          }}
           aria-label='toggle-sound'
         >
           {isMute ? <HiVolumeOff size={22} /> : <HiVolumeUp size={22} />}
@@ -478,13 +527,21 @@ export default function Reaction({
       {isTouchDevice ? (
         <button
           className='reaction-btn'
-          onClick={() => nativeShareVia(video.caption, POST_URL)}
+          onClick={() => {
+            if (onActionIntercept()) return;
+            nativeShareVia(video.caption, POST_URL);
+          }}
         >
           <IoMdShareAlt size={28} />
         </button>
       ) : (
         <div className='group relative'>
-          <button className='reaction-btn'>
+          <button
+            className='reaction-btn'
+            onClick={() => {
+              if (onActionIntercept()) return;
+            }}
+          >
             <IoMdShareAlt size={28} />
           </button>
 
@@ -497,11 +554,15 @@ export default function Reaction({
                   name={item.name}
                   POST_URL={POST_URL}
                   caption={video.caption}
+                  onClick={() => onActionIntercept() as unknown as void}
                 />
               ))}
 
               <div
-                onClick={() => copyToClipboard(POST_URL)}
+                onClick={() => {
+                  if (onActionIntercept()) return;
+                  copyToClipboard(POST_URL);
+                }}
                 className='flex cursor-pointer items-center px-4 py-2 hover:bg-gray-200 dark:hover:bg-darkBtnHover'
               >
                 <div className='mr-2 flex h-7 w-7 items-center justify-center'>

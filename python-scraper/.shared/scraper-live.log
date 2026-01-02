@@ -803,3 +803,10 @@ Skip auto publish: AUTO_PUBLISH!=1
 2025-12-27T17:56:13.424838+00:00 run=9efc22b7e8e44344a03751cd5a6ccfec target start baseUrl=https://mmsbaba.com pageLimit=1 maxPosts=0 mode=scrape
 2025-12-27T17:56:16.415964+00:00 run=9efc22b7e8e44344a03751cd5a6ccfec target done exit=0
 2025-12-27T17:56:16.490830+00:00 run=9efc22b7e8e44344a03751cd5a6ccfec succeeded
+2026-01-02T18:54:57.431995+00:00 run=07df5de8a31441348160581d26390e0f start
+2026-01-02T18:54:57.433052+00:00 run=07df5de8a31441348160581d26390e0f target start baseUrl=https://mmsbaba.com pageLimit=1 maxPosts=0 mode=scrape
+2026-01-02T18:55:00.532999+00:00 run=07df5de8a31441348160581d26390e0f target done exit=0
+2026-01-02T18:55:00.545152+00:00 run=07df5de8a31441348160581d26390e0f succeeded
+2026-01-02T18:55:00.546097+00:00 run=ae18f5dac21b4e7ea279758fbe9c1170 start
+2026-01-02T18:55:00.546520+00:00 run=ae18f5dac21b4e7ea279758fbe9c1170 target start baseUrl=https://mmsbaba.com pageLimit=296 maxPosts=0 mode=details
+2026-01-02T19:21:00.605507+00:00 run=ae18f5dac21b4e7ea279758fbe9c1170 listing_posts written count=5909

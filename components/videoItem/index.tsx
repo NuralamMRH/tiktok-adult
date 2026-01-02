@@ -34,6 +34,9 @@ interface Props {
   handleIntersectingChange: (video: TIntersectingVideo) => void;
 }
 
+const AD_LINK =
+  'https://www.effectivegatecpm.com/rf4kwyvw?key=5611682824598b90f7f470d185d6cb60';
+
 export default function VideoItem({
   post,
   isMute,
@@ -67,6 +70,9 @@ export default function VideoItem({
   const longPressTimeoutRef = useRef<number | null>(null);
   const [isFastPlayback, setIsFastPlayback] = useState(false);
 
+  // Ad handling state
+  const [hasOpenedAd, setHasOpenedAd] = useState(false);
+
   //hooks
   const router = useRouter();
   const { data: user }: any = useSession();
@@ -77,6 +83,15 @@ export default function VideoItem({
   const onIntersectingChange = (inView: boolean) => {
     handleIntersectingChange({ id: videoId, inView, videoRef });
   };
+
+  const handleActionIntercept = useCallback(() => {
+    if (!hasOpenedAd) {
+      window.open(AD_LINK, '_blank');
+      setHasOpenedAd(true);
+      return true; // Action intercepted
+    }
+    return false; // Action allowed
+  }, [hasOpenedAd]);
 
   async function deletePostHandler() {
     await handleDeletePost(videoId);
@@ -130,11 +145,14 @@ export default function VideoItem({
   }, [currentVideo.isPlaying, currentVideo.videoRef, setCurrentVideo]);
 
   const handleVideoSingleClick = useCallback(() => {
+    if (handleActionIntercept()) return;
     handlePlayPause();
-  }, [handlePlayPause]);
+  }, [handlePlayPause, handleActionIntercept]);
 
   const handleVideoDoubleClick = useCallback(
     async (e: MouseEvent) => {
+      if (handleActionIntercept()) return;
+
       if (!user) return setShowLogin(true);
 
       setHeartPosition(handleClickPosition(e));
@@ -152,7 +170,7 @@ export default function VideoItem({
         }
       }
     },
-    [alreadyLiked, handleLike, post._id, user],
+    [alreadyLiked, handleLike, post._id, user, handleActionIntercept],
   );
 
   const handleVideoClick = videoClicker(
@@ -409,6 +427,7 @@ export default function VideoItem({
           onShowComments={() => setShowComments(true)}
           isMute={isMute}
           handleMute={handleMute}
+          onActionIntercept={handleActionIntercept}
         />
       </InView>
     </>

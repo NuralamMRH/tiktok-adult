@@ -459,7 +459,7 @@ export default function Home({
   }
 
   const adSlots = useMemo(() => {
-    const intervals = [7, 12];
+    const intervals = [3];
     const slots = new Set<number>();
     let pos = -1;
     let i = 0;

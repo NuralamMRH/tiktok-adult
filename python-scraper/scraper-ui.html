@@ -182,6 +182,12 @@
               >
                 Import Preset JSON
               </button>
+              <button
+                onclick="openTargetModal(null)"
+                class="rounded-xl border border-indigo-600 bg-indigo-600 px-4 py-3 text-xs font-bold text-white transition hover:bg-indigo-500"
+              >
+                <i class="fas fa-plus mr-2"></i> Add Target
+              </button>
             </div>
             <div
               id="targetsMeta"
@@ -235,42 +241,30 @@
             id="publishPanel"
             class="glass-card hidden overflow-hidden rounded-3xl border border-slate-800 p-6"
           >
-            <div class="flex items-center justify-between gap-6">
-              <div class="min-w-0">
-                <div
-                  class="text-sm font-black uppercase tracking-widest text-slate-500"
-                >
-                  Sanity Publishing
-                </div>
-                <div
-                  id="publishStatusText"
-                  class="mt-2 text-sm font-bold text-white"
-                ></div>
-                <div
-                  id="publishResultText"
-                  class="mt-1 font-mono text-xs text-slate-400"
-                ></div>
-              </div>
-              <div class="flex items-center gap-3">
-                <div
-                  id="publishSpinner"
-                  class="hidden h-10 w-10 items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 text-indigo-400"
-                >
-                  <i class="fas fa-circle-notch fa-spin"></i>
-                </div>
-              </div>
-            </div>
-            <div
-              class="mt-4 h-2 w-full overflow-hidden rounded-full bg-slate-900"
-            >
+            <div class="mb-4 flex items-center justify-between">
               <div
-                id="publishBar"
-                class="h-full w-0 rounded-full bg-gradient-to-r from-indigo-600 to-blue-500"
-              ></div>
+                class="text-sm font-black uppercase tracking-widest text-slate-500"
+              >
+                Sanity Publishing Queue
+              </div>
+              <div class="flex items-center gap-2">
+                <button
+                  onclick="
+                    if (state.publishTasks) {
+                      state.publishTasks = [];
+                      renderPublishTasks();
+                      updatePublishUi();
+                    }
+                  "
+                  class="text-[10px] text-slate-500 hover:text-white"
+                >
+                  CLEAR ALL
+                </button>
+              </div>
             </div>
             <div
-              id="publishFailedList"
-              class="custom-scrollbar mt-4 hidden max-h-40 overflow-y-auto rounded-2xl border border-slate-900 bg-black/40 p-4 font-mono text-[11px] text-slate-200"
+              id="publishTasksContainer"
+              class="custom-scrollbar max-h-[300px] space-y-4 overflow-y-auto"
             ></div>
           </div>
 
@@ -295,6 +289,7 @@
 
         <!-- TAB: LIVE STREAM (ACTIVE RUNS) -->
         <div id="active-runs" class="tab-content space-y-6">
+          <div id="recentRunsList" class="space-y-4"></div>
           <!-- User's provided running JSON data as live progress card -->
           <div
             class="glass-card relative overflow-hidden rounded-[2.5rem] border-t-8 border-indigo-500 p-10"
@@ -534,6 +529,47 @@
                     <option value="6h">6 Hours</option>
                     <option value="12h">12 Hours</option>
                     <option value="24h">24 Hours</option>
+                  </select>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+                <div class="space-y-2">
+                  <label
+                    class="text-[10px] font-black uppercase tracking-widest text-slate-500"
+                    >Page Limit</label
+                  >
+                  <input
+                    id="targetPageLimitInput"
+                    type="number"
+                    min="1"
+                    placeholder="1"
+                    class="w-full rounded-2xl border border-slate-800 bg-black px-6 py-4 font-medium transition focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div class="space-y-2">
+                  <label
+                    class="text-[10px] font-black uppercase tracking-widest text-slate-500"
+                    >Max Posts</label
+                  >
+                  <input
+                    id="targetMaxPostsInput"
+                    type="number"
+                    min="0"
+                    placeholder="0 (Unlimited)"
+                    class="w-full rounded-2xl border border-slate-800 bg-black px-6 py-4 font-medium transition focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+                <div class="space-y-2">
+                  <label
+                    class="text-[10px] font-black uppercase tracking-widest text-slate-500"
+                    >Scrape Order</label
+                  >
+                  <select
+                    id="targetScrapeOrderSelect"
+                    class="w-full cursor-pointer appearance-none rounded-2xl border border-slate-800 bg-black px-6 py-4 focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="asc">Ascending (1 -> N)</option>
+                    <option value="desc">Descending (N -> 1)</option>
                   </select>
                 </div>
               </div>
@@ -813,15 +849,25 @@
         }, 3000);
       }
 
+      function getApiPrefix() {
+        const path = window.location.pathname;
+        if (path.endsWith('/') || path.split('/').pop().includes('.'))
+          return '';
+        const segment = path.split('/').pop();
+        return segment ? segment + '/' : '';
+      }
+
       async function apiGet(path) {
-        const r = await fetch(path, { cache: 'no-store' });
+        const prefix = getApiPrefix();
+        const r = await fetch(prefix + path, { cache: 'no-store' });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
         return j;
       }
 
       async function apiSend(path, method, body) {
-        const r = await fetch(path, {
+        const prefix = getApiPrefix();
+        const r = await fetch(prefix + path, {
           method,
           headers: { 'Content-Type': 'application/json' },
           body: body ? JSON.stringify(body) : undefined,
@@ -833,7 +879,7 @@
 
       async function resolveWebApiBase() {
         if (state.webApiBase) return state.webApiBase;
-        const publishPath = '/api/admin/scraper/publish-sanity';
+        const publishPath = 'api/admin/scraper/publish-sanity';
         const proto = location.protocol;
         const host = location.hostname;
         const candidates = [];
@@ -843,7 +889,9 @@
         candidates.push(`${proto}//${host}:3001`);
         candidates.push(`${proto}//${host}:3002`);
         for (const base of candidates) {
-          const url = base ? `${base}${publishPath}` : publishPath;
+          const url = base
+            ? `${base}/${publishPath}`
+            : getApiPrefix() + publishPath;
           try {
             const r = await fetch(url, { method: 'OPTIONS' });
             if (r.ok) {
@@ -880,6 +928,9 @@
         const maxPosts = Number.isFinite(Number(t?.maxPosts ?? t?.max_posts))
           ? Number(t.maxPosts ?? t.max_posts)
           : 0;
+        const scrapeOrder = String(t?.scrapeOrder || t?.scrape_order || 'asc')
+          .trim()
+          .toLowerCase();
         const config =
           typeof t?.config === 'object' && t?.config
             ? t.config
@@ -900,6 +951,7 @@
           useSelenium,
           autoPublish,
           maxPosts,
+          scrapeOrder,
           config,
         };
       }
@@ -988,6 +1040,7 @@
             <div class="space-y-2 rounded-2xl border border-slate-900 bg-slate-950/40 p-4 text-xs">
               <div class="flex justify-between"><span class="text-slate-500">Pages</span><span class="font-bold text-indigo-400">${t.pageLimit || 1}</span></div>
               <div class="flex justify-between"><span class="text-slate-500">Max Posts</span><span class="font-bold text-indigo-400">${t.maxPosts || 0}</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">Order</span><span class="font-bold text-indigo-400">${t.scrapeOrder || 'asc'}</span></div>
               <div class="flex justify-between"><span class="text-slate-500">Selenium</span><span class="font-bold text-indigo-400">${t.useSelenium ? 'On' : 'Off'}</span></div>
             </div>
             <div class="mt-5 flex gap-2">
@@ -1026,8 +1079,12 @@
                 mode: 'scrape',
                 maxPosts: 0,
                 query: '',
+                scrapeOrder: 'asc',
               });
         el('targetBaseUrlInput').value = t.baseUrl || '';
+        el('targetPageLimitInput').value = t.pageLimit || 1;
+        el('targetMaxPostsInput').value = t.maxPosts || '';
+        el('targetScrapeOrderSelect').value = t.scrapeOrder || 'asc';
         el('targetNameInput').value = targetLabel(t) || '';
         el('targetUseSeleniumToggle').checked = !!t.useSelenium;
         el('targetAutoPublishToggle').checked = !!t.autoPublish;
@@ -1132,16 +1189,50 @@
           safeJsonParse(el('targetConfigTextarea').value || '') || {};
         const t = normalizeTarget({
           baseUrl,
+          pageLimit: el('targetPageLimitInput').value,
+          maxPosts: el('targetMaxPostsInput').value,
+          scrapeOrder: el('targetScrapeOrderSelect').value,
           useSelenium: el('targetUseSeleniumToggle').checked,
           autoPublish: el('targetAutoPublishToggle').checked,
           config,
         });
-        if (state.editingTargetIndex === null) state.targets.unshift(t);
-        else
-          state.targets[state.editingTargetIndex] = {
-            ...state.targets[state.editingTargetIndex],
+
+        // Check if a target with this Base URL already exists
+        const existingIndex = state.targets.findIndex(
+          (x) => x.baseUrl === t.baseUrl,
+        );
+
+        if (state.editingTargetIndex !== null) {
+          // Editing mode
+          if (
+            existingIndex >= 0 &&
+            existingIndex !== state.editingTargetIndex
+          ) {
+            // Collision: Merging into another existing target
+            state.targets[existingIndex] = {
+              ...state.targets[existingIndex],
+              ...t,
+            };
+            state.targets.splice(state.editingTargetIndex, 1);
+            notify('Merged into existing target with same URL', 'success');
+          } else {
+            // Normal update
+            state.targets[state.editingTargetIndex] = {
+              ...state.targets[state.editingTargetIndex],
+              ...t,
+            };
+          }
+        } else if (existingIndex >= 0) {
+          // New mode, but URL exists -> Update existing
+          state.targets[existingIndex] = {
+            ...state.targets[existingIndex],
             ...t,
           };
+          notify('Updated existing target with same URL', 'success');
+        } else {
+          // New mode, unique URL -> Create new
+          state.targets.unshift(t);
+        }
 
         const sched = String(el('targetScheduleSelect')?.value || 'none');
         if (sched !== 'none') {
@@ -1157,7 +1248,7 @@
           const intervalSeconds = map[sched];
           if (intervalSeconds) {
             try {
-              await apiSend('/api/jobs', 'POST', {
+              await apiSend('api/jobs', 'POST', {
                 name: String(el('targetNameInput')?.value || targetLabel(t)),
                 intervalSeconds,
                 targets: [t],
@@ -1187,7 +1278,7 @@
           return;
         }
         try {
-          const r = await apiSend('/api/runs', 'POST', { targets });
+          const r = await apiSend('api/runs', 'POST', { targets });
           const runId = r?.data?.runId || '';
           if (runId) state.selectedRunId = runId;
           notify(runId ? `Run accepted ${runId}` : 'Run accepted', 'success');
@@ -1279,7 +1370,7 @@
 
       async function refreshJobs() {
         try {
-          const r = await apiGet('/api/jobs');
+          const r = await apiGet('api/jobs');
           state.jobs = r.data || [];
           renderSchedules();
         } catch (e) {
@@ -1290,7 +1381,7 @@
       async function runJob(jobId) {
         try {
           const r = await apiSend(
-            `/api/jobs/${encodeURIComponent(jobId)}/run`,
+            `api/jobs/${encodeURIComponent(jobId)}/run`,
             'POST',
             {},
           );
@@ -1309,7 +1400,7 @@
 
       async function deleteJob(jobId) {
         try {
-          await apiSend(`/api/jobs/${encodeURIComponent(jobId)}`, 'DELETE');
+          await apiSend(`api/jobs/${encodeURIComponent(jobId)}`, 'DELETE');
           notify('Job deleted', 'success');
           await refreshJobs();
         } catch (e) {
@@ -1335,9 +1426,10 @@
 
       async function refreshRuns() {
         try {
-          const r = await apiGet('/api/runs');
+          const r = await apiGet('api/runs');
           state.runs = r.data || [];
           renderRunsSelect();
+          renderRecentRuns();
           if (state.selectedRunId) await loadRunPosts(state.selectedRunId);
         } catch (e) {
           notify(String(e.message || e), 'error');
@@ -1394,6 +1486,7 @@
               <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
               <div class="absolute bottom-4 left-4 right-4">
                 <span class="mb-2 inline-block rounded bg-indigo-600 px-2 py-1 text-[10px] font-black">${sourceLabel}</span>
+                ${p.published ? '<span class="mb-2 ml-1 inline-block rounded bg-emerald-600 px-2 py-1 text-[10px] font-black text-white">PUBLISHED</span>' : ''}
                 <h4 class="line-clamp-2 text-sm font-bold text-white">${title}</h4>
               </div>
             </div>
@@ -1415,7 +1508,7 @@
       async function loadRunPosts(runId) {
         if (!runId) return;
         try {
-          const r = await apiGet(`/api/runs/${encodeURIComponent(runId)}`);
+          const r = await apiGet(`api/runs/${encodeURIComponent(runId)}`);
           state.selectedRunId = runId;
           state.selectedRunPosts = extractPostsFromRun(r.data);
           renderResultsGrid();
@@ -1438,11 +1531,109 @@
         const out = [];
         for (const p of posts) {
           if (!p || !p.link) continue;
+          if (p.published) continue;
           const v = p.video_src || p.video_url;
           if (!v) continue;
           out.push(p);
         }
         return out;
+      }
+
+      function renderPublishTasks() {
+        const container = el('publishTasksContainer');
+        const panel = el('publishPanel');
+        if (!container) return;
+        const tasks = state.publishTasks || [];
+
+        if (panel) {
+          panel.classList.toggle('hidden', tasks.length === 0);
+        }
+
+        if (tasks.length === 0) {
+          container.innerHTML = '';
+          return;
+        }
+        container.innerHTML = tasks
+          .map((task) => {
+            const pct = Math.max(0, Math.min(100, task.percent || 0));
+            const color =
+              task.status === 'failed'
+                ? 'bg-rose-500'
+                : task.status === 'completed'
+                  ? 'bg-emerald-500'
+                  : 'bg-indigo-500';
+            return `
+            <div class="glass-card rounded-2xl border border-slate-800 p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs font-bold text-white">Publishing to Sanity (Run: ${task.runId})</div>
+                    <div class="text-[10px] uppercase font-black text-slate-500">${task.status}</div>
+                </div>
+                <div class="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden mb-2">
+                    <div class="h-full ${color} transition-all duration-300" style="width: ${pct}%"></div>
+                </div>
+                <div class="flex justify-between text-[10px] font-mono text-slate-400">
+                   <span>${task.resultText || ''}</span>
+                   <span>${pct}%</span>
+                </div>
+                ${
+                  task.failedSamples && task.failedSamples.length
+                    ? `
+                <div class="mt-2 text-[10px] text-rose-400 max-h-20 overflow-y-auto custom-scrollbar bg-black/20 p-2 rounded">
+                    ${task.failedSamples.map((x) => `<div>${x.link}: ${x.error}</div>`).join('')}
+                </div>`
+                    : ''
+                }
+            </div>`;
+          })
+          .join('');
+      }
+
+      function renderRecentRuns() {
+        const list = el('recentRunsList');
+        if (!list) return;
+        const runs = state.runs || [];
+        if (runs.length === 0) {
+          list.innerHTML =
+            '<div class="text-center text-slate-500 text-xs py-4">No recent runs</div>';
+          return;
+        }
+        list.innerHTML = runs
+          .slice(0, 20)
+          .map((run) => {
+            const status = (run.status || 'unknown').toLowerCase();
+            const color =
+              status === 'succeeded'
+                ? 'text-emerald-400'
+                : status === 'failed'
+                  ? 'text-rose-400'
+                  : status === 'running'
+                    ? 'text-indigo-400'
+                    : status === 'queued'
+                      ? 'text-amber-400'
+                      : 'text-slate-400';
+            const borderColor =
+              status === 'running'
+                ? 'border-indigo-500/50'
+                : status === 'queued'
+                  ? 'border-amber-500/50'
+                  : 'border-slate-800';
+            return `
+            <div class="glass-card rounded-2xl border ${borderColor} p-4 flex items-center justify-between transition hover:bg-slate-800/50 cursor-pointer mb-2" onclick="loadRunPosts('${run.id}'); switchTab('results');">
+                <div>
+                    <div class="text-xs font-mono text-slate-500 mb-1">RUN: ${run.id}</div>
+                    <div class="text-sm font-bold text-white flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full ${status === 'running' ? 'bg-indigo-500 animate-pulse' : status === 'succeeded' ? 'bg-emerald-500' : status === 'queued' ? 'bg-amber-500 animate-pulse' : 'bg-slate-600'}"></span>
+                        ${status.toUpperCase()}
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="text-[10px] text-slate-500">${run.started_at || ''}</div>
+                    <div class="text-xs font-bold ${color}">${status}</div>
+                </div>
+             </div>
+             `;
+          })
+          .join('');
       }
 
       function setPublishPanel({
@@ -1483,36 +1674,15 @@
         const run = getSelectedRunMeta();
         const status = String(run?.status || '').toLowerCase();
         const canPublish = status === 'succeeded';
-        btn.classList.toggle('hidden', !canPublish);
-        btn.disabled = !canPublish || state.publish.running;
-        btn.classList.toggle(
-          'opacity-40',
-          !canPublish || state.publish.running,
-        );
-        btn.classList.toggle(
-          'cursor-not-allowed',
-          !canPublish || state.publish.running,
+
+        const isPublishing = (state.publishTasks || []).some(
+          (t) => t.runId === state.selectedRunId && t.status === 'running',
         );
 
-        if (!canPublish) {
-          setPublishPanel({
-            show: false,
-            running: false,
-            statusText: '',
-            resultText: '',
-            percent: 0,
-          });
-          return;
-        }
-        if (state.publish.running) return;
-        const publishable = getPublishablePosts();
-        setPublishPanel({
-          show: true,
-          running: false,
-          statusText: 'Ready to publish',
-          resultText: `Publishable posts: ${publishable.length}`,
-          percent: 0,
-        });
+        btn.classList.toggle('hidden', !canPublish);
+        btn.disabled = !canPublish || isPublishing;
+        btn.classList.toggle('opacity-40', !canPublish || isPublishing);
+        btn.classList.toggle('cursor-not-allowed', !canPublish || isPublishing);
       }
 
       async function publishToSanity() {
@@ -1524,77 +1694,109 @@
         }
         const publishable = getPublishablePosts();
         if (!publishable.length) {
-          notify('No publishable posts (missing link/video)', 'error');
+          notify('No new publishable posts found', 'error');
           return;
         }
 
-        const publishPath = '/api/admin/scraper/publish-sanity';
+        const publishPath = 'api/admin/scraper/publish-sanity';
         const base = await resolveWebApiBase();
-        const publishUrl = base ? `${base}${publishPath}` : publishPath;
+        const publishUrl = base ? `${base}/${publishPath}` : publishPath;
 
-        state.publish.running = true;
-        state.publish.total = publishable.length;
-        state.publish.startedAt = Date.now();
+        if (!state.publishTasks) state.publishTasks = [];
+        const task = {
+          id: Date.now(),
+          runId: state.selectedRunId,
+          status: 'running',
+          percent: 0,
+          resultText: `Starting publish for ${publishable.length} posts...`,
+          failedSamples: [],
+        };
+        state.publishTasks.unshift(task);
+        renderPublishTasks();
         updatePublishUi();
+        notify('Publishing started in background...', 'success');
 
-        setPublishPanel({
-          show: true,
-          running: true,
-          statusText: `Publishing ${publishable.length} posts...`,
-          resultText: '',
-          percent: 10,
-        });
-
-        const startedAt = Date.now();
-        const timer = window.setInterval(() => {
-          const elapsed = Math.max(0, Date.now() - startedAt);
-          const pct = 10 + Math.min(80, Math.floor(elapsed / 1000) * 2);
-          setPublishPanel({
-            show: true,
-            running: true,
-            statusText: `Publishing ${publishable.length} posts...`,
-            resultText: `Elapsed: ${Math.floor(elapsed / 1000)}s`,
-            percent: pct,
-          });
-        }, 800);
+        const BATCH_SIZE = 5;
+        let processed = 0;
+        let postedTotal = 0;
+        let skippedTotal = 0;
+        let failedTotal = 0;
+        const total = publishable.length;
+        const allFailedSamples = [];
 
         try {
-          const r = await apiSend(publishUrl, 'POST', {
-            posts: publishable,
-            runId: state.selectedRunId,
-          });
-          const d = r.data || {};
-          const posted = Number(d.posted || 0);
-          const skipped = Number(d.skipped || 0);
-          const failed = Number(d.failed || 0);
-          const total = Number(d.total || publishable.length);
-          const failedSamples = d.failedSamples || [];
+          for (let i = 0; i < total; i += BATCH_SIZE) {
+            if (task.status === 'failed' || task.status === 'canceled') break;
+
+            const chunk = publishable.slice(i, i + BATCH_SIZE);
+            task.resultText = `Publishing ${i + 1}-${Math.min(i + BATCH_SIZE, total)} of ${total} posts...`;
+            renderPublishTasks();
+
+            try {
+              const r = await apiSend(publishUrl, 'POST', {
+                posts: chunk,
+                runId: state.selectedRunId,
+              });
+              const d = r.data || {};
+              const p = Number(d.posted || 0);
+              const s = Number(d.skipped || 0);
+              const f = Number(d.failed || 0);
+              const fs = d.failedSamples || [];
+
+              postedTotal += p;
+              skippedTotal += s;
+              failedTotal += f;
+              if (fs.length) allFailedSamples.push(...fs);
+
+              if (p > 0) {
+                await apiSend(
+                  `api/runs/${encodeURIComponent(task.runId)}/mark-published`,
+                  'POST',
+                  {
+                    links: chunk.map((p) => p.link),
+                  },
+                );
+                if (state.selectedRunId === task.runId) {
+                  const localPosts = state.selectedRunPosts || [];
+                  const linkSet = new Set(chunk.map((p) => p.link));
+                  for (const p of localPosts) {
+                    if (linkSet.has(p.link)) p.published = true;
+                  }
+                  renderResultsGrid();
+                }
+              }
+            } catch (e) {
+              failedTotal += chunk.length;
+              allFailedSamples.push({
+                link: 'batch_error',
+                error: String(e.message || e),
+              });
+            }
+
+            processed += chunk.length;
+            task.percent = Math.floor((processed / total) * 100);
+            task.failedSamples = allFailedSamples.slice(0, 20);
+            renderPublishTasks();
+          }
+
+          task.status =
+            failedTotal === total && total > 0 ? 'failed' : 'completed';
+          task.percent = 100;
+          task.resultText = `Posted: ${postedTotal}, Skipped: ${skippedTotal}, Failed: ${failedTotal}`;
+          task.failedSamples = allFailedSamples;
+          renderPublishTasks();
+
           notify(
-            `Published posted=${posted} skipped=${skipped} failed=${failed}`,
-            failed ? 'error' : 'success',
+            `Publish finished: ${postedTotal} posted`,
+            failedTotal ? 'warning' : 'success',
           );
-          setPublishPanel({
-            show: true,
-            running: false,
-            statusText: failed
-              ? 'Finished with errors'
-              : 'Finished successfully',
-            resultText: `Total: ${total} · Posted: ${posted} · Skipped: ${skipped} · Failed: ${failed}`,
-            percent: 100,
-            failedSamples,
-          });
         } catch (e) {
-          notify(String(e.message || e), 'error');
-          setPublishPanel({
-            show: true,
-            running: false,
-            statusText: 'Publish failed',
-            resultText: String(e.message || e),
-            percent: 0,
-          });
+          task.status = 'failed';
+          task.resultText = String(e.message || e);
+          task.percent = 0;
+          notify(`Publish failed: ${e.message}`, 'error');
         } finally {
-          window.clearInterval(timer);
-          state.publish.running = false;
+          renderPublishTasks();
           updatePublishUi();
         }
       }
@@ -1630,7 +1832,7 @@
         if (!state.selectedRunId) return;
         try {
           await apiSend(
-            `/api/runs/${encodeURIComponent(state.selectedRunId)}`,
+            `api/runs/${encodeURIComponent(state.selectedRunId)}`,
             'DELETE',
           );
           notify('Run deleted', 'success');
@@ -1644,7 +1846,7 @@
 
       async function refreshProgress() {
         try {
-          const r = await apiGet('/progress');
+          const r = await apiGet('progress');
           const pr = r.data || {};
           const running = !!pr.running;
           const runId = String(pr.runId || state.selectedRunId || '');
@@ -1722,7 +1924,10 @@
 
       async function refreshLog() {
         try {
-          const r = await fetch('/scraper-live.log', { cache: 'no-store' });
+          const prefix = getApiPrefix();
+          const r = await fetch(prefix + 'scraper-live.log', {
+            cache: 'no-store',
+          });
           el('liveLog').textContent = await r.text();
         } catch {
           el('liveLog').textContent = '';
@@ -1731,7 +1936,7 @@
 
       async function stopCurrentRun() {
         try {
-          const pr = await apiGet('/progress');
+          const pr = await apiGet('progress');
           const runId = String(
             pr?.data?.runId || state.selectedRunId || '',
           ).trim();
@@ -1740,7 +1945,7 @@
             return;
           }
           await apiSend(
-            `/api/runs/${encodeURIComponent(runId)}/stop`,
+            `api/runs/${encodeURIComponent(runId)}/stop`,
             'POST',
             {},
           );
@@ -1783,10 +1988,27 @@
           const presetId = String(el('presetSelect')?.value || '').trim();
           state.selectedPresetId = presetId;
           const p = state.presets.find((x) => x.id === presetId);
-          const targets = targetsFromPreset(p);
-          state.targets = targets;
+          const newTargets = targetsFromPreset(p);
+
+          let added = 0;
+          let updated = 0;
+
+          for (const t of newTargets) {
+            const idx = state.targets.findIndex((x) => x.baseUrl === t.baseUrl);
+            if (idx >= 0) {
+              state.targets[idx] = { ...state.targets[idx], ...t };
+              updated++;
+            } else {
+              state.targets.push(t);
+              added++;
+            }
+          }
+
           renderTargets();
-          notify('Preset loaded', 'success');
+          notify(
+            `Preset loaded: ${added} added, ${updated} updated`,
+            'success',
+          );
         });
 
         el('importPresetBtn')?.addEventListener('click', () =>
@@ -1826,7 +2048,7 @@
       async function init() {
         attachHandlers();
         try {
-          const r = await apiGet('/api/presets');
+          const r = await apiGet('api/presets');
           state.presets = r.data || [];
           state.selectedPresetId = state.presets[0]?.id || '';
           renderPresets();

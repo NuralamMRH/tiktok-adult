@@ -1,10 +1,10 @@
 {
-  "total_posts": 5876,
+  "total_posts": 5909,
   "new_posts": 0,
-  "posts_with_videos": 5876,
-  "posts_with_images": 5876,
+  "posts_with_videos": 5909,
+  "posts_with_images": 5909,
   "errors": 0,
-  "pages_completed": 1,
-  "page_limit": 1,
-  "last_run_at": "2025-12-27 23:56:16"
+  "pages_completed": 197,
+  "page_limit": 296,
+  "last_run_at": "2026-01-03 01:21:00"
 }

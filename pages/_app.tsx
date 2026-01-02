@@ -14,7 +14,9 @@ export default function App({
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
   const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
-  const showAdstraAds = process.env.NEXT_SHOW_ADSTRA_ADS !== 'false';
+  const showAdstraAds =
+    (process.env.NEXT_PUBLIC_SHOW_ADSTRA_ADS ??
+      process.env.NEXT_SHOW_ADSTRA_ADS) === 'true';
 
   useEffect(() => {
     if (
@@ -89,12 +91,12 @@ gtag('config', '${GA_ID}', { page_path: window.location.pathname });
     if (showAdstraAds) {
       adstraHead = ensureExternalScript(
         'adstra-head',
-        '/https://pl27803066.effectivegatecpm.com/f9/ec/19/f9ec19fd63fe021bb37fbad13f97cecc.js',
+        'https://pl27803066.effectivegatecpm.com/f9/ec/19/f9ec19fd63fe021bb37fbad13f97cecc.js',
       );
-      adstraPop = ensureExternalScript(
-        'adstra-popunder',
-        'https://pl27848943.effectivegatecpm.com/b3/32/34/b33234daaf777c92e3d2b4a4fbea36bf.js',
-      );
+      // adstraPop = ensureExternalScript(
+      //   'adstra-popunder',
+      //   'https://pl27848943.effectivegatecpm.com/b3/32/34/b33234daaf777c92e3d2b4a4fbea36bf.js',
+      // );
     }
 
     return () => {

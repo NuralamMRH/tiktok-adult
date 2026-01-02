@@ -9,6 +9,7 @@ export default function UserProfile({ src, className }: Props) {
   function sanitizeUrl(u: string) {
     if (!u) return '';
     const s = u.trim().replace(/[)]+$/g, '');
+    if (s.includes('images.pexels.com/')) return '/blur-img-light.jpg';
     return s;
   }
   return (

@@ -104,16 +104,6 @@ export function VideoFooter({ creator, caption, createdAt }: Props) {
 
       {isClient && process.env.NEXT_SHOW_ADSTRA_ADS !== 'false' && (
         <>
-          <Link
-            href={
-              'https://www.effectivegatecpm.com/rf4kwyvw?key=5611682824598b90f7f470d185d6cb60'
-            }
-            className='block'
-            target='_blank'
-          >
-            <span className='block'>Close Ads</span>
-          </Link>
-
           <div className='fixed left-1/2 top-2 z-40 -translate-x-1/2'>
             <div className='float-end h-[50px] w-[300px]'>
               <InlineAd
