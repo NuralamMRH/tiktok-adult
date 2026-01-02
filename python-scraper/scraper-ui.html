@@ -1478,6 +1478,7 @@
             ? p.slinks_texts.slice(0, 6)
             : [];
           const card = document.createElement('div');
+          card.dataset.link = link;
           card.className =
             'glass-card post-card group overflow-hidden rounded-3xl border border-slate-800 transition-all duration-300 hover:border-indigo-500/50';
           card.innerHTML = `
@@ -1502,6 +1503,31 @@
             </div>
           `;
           grid.appendChild(card);
+        }
+      }
+
+      function updatePublishedBadges(links) {
+        const grid = el('resultsGrid');
+        if (!grid) return;
+        const linkSet = new Set(links);
+        const cards = grid.children;
+        for (let i = 0; i < cards.length; i++) {
+          const card = cards[i];
+          if (linkSet.has(card.dataset.link)) {
+            const labelContainer = card.querySelector('.absolute.bottom-4');
+            if (
+              labelContainer &&
+              !labelContainer.querySelector('.bg-emerald-600')
+            ) {
+              const badge = document.createElement('span');
+              badge.className =
+                'mb-2 ml-1 inline-block rounded bg-emerald-600 px-2 py-1 text-[10px] font-black text-white';
+              badge.textContent = 'PUBLISHED';
+              const sourceLabel = labelContainer.querySelector('span');
+              if (sourceLabel) sourceLabel.after(badge);
+              else labelContainer.prepend(badge);
+            }
+          }
         }
       }
 
@@ -1742,28 +1768,39 @@
               const s = Number(d.skipped || 0);
               const f = Number(d.failed || 0);
               const fs = d.failedSamples || [];
+              const postedLinks = Array.isArray(d.postedLinks)
+                ? d.postedLinks
+                : [];
 
               postedTotal += p;
               skippedTotal += s;
               failedTotal += f;
               if (fs.length) allFailedSamples.push(...fs);
 
-              if (p > 0) {
+              const linksToMark =
+                postedLinks.length > 0
+                  ? postedLinks
+                  : p > 0
+                    ? chunk.map((p) => p.link)
+                    : [];
+
+              if (linksToMark.length > 0) {
+                if (state.selectedRunId === task.runId) {
+                  const localPosts = state.selectedRunPosts || [];
+                  const linkSet = new Set(linksToMark);
+                  for (const p of localPosts) {
+                    if (linkSet.has(p.link)) p.published = true;
+                  }
+                  updatePublishedBadges(linksToMark);
+                }
+
                 await apiSend(
                   `api/runs/${encodeURIComponent(task.runId)}/mark-published`,
                   'POST',
                   {
-                    links: chunk.map((p) => p.link),
+                    links: linksToMark,
                   },
                 );
-                if (state.selectedRunId === task.runId) {
-                  const localPosts = state.selectedRunPosts || [];
-                  const linkSet = new Set(chunk.map((p) => p.link));
-                  for (const p of localPosts) {
-                    if (linkSet.has(p.link)) p.published = true;
-                  }
-                  renderResultsGrid();
-                }
               }
             } catch (e) {
               failedTotal += chunk.length;

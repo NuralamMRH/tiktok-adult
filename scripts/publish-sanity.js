@@ -490,6 +490,7 @@ async function publishPostsToSanity(posts, opts = {}) {
   let skipped = 0;
   let failed = 0;
   const failedSamples = [];
+  const postedLinks = [];
 
   await Promise.all(
     (posts || []).map(async (p) => {
@@ -537,6 +538,7 @@ async function publishPostsToSanity(posts, opts = {}) {
         };
         await client.createIfNotExists(doc);
         posted++;
+        postedLinks.push(sourceLink);
       } catch (e) {
         failed++;
         if (failedSamples.length < 8) {
@@ -550,7 +552,7 @@ async function publishPostsToSanity(posts, opts = {}) {
     }),
   );
 
-  return { posted, skipped, failed, failedSamples };
+  return { posted, skipped, failed, failedSamples, postedLinks };
 }
 
 async function runCli() {

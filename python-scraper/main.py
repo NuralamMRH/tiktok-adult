@@ -3170,6 +3170,28 @@ def run_flask_server():
             cur.execute("UPDATE runs SET result_json=? WHERE id=?", (json_dumps(result), run_id))
             conn.commit()
             conn.close()
+
+            # Update post-details.json with isPublished=true
+            try:
+                details_path = os.path.join(OUTPUT_DIR, 'post-details.json')
+                if os.path.exists(details_path):
+                    with open(details_path, 'r', encoding='utf-8') as f:
+                        details = json.load(f)
+                    
+                    details_updated = False
+                    d_posts = details.get('posts')
+                    if isinstance(d_posts, list):
+                        for p in d_posts:
+                            if isinstance(p, dict) and p.get('link') in links:
+                                if not p.get('isPublished'):
+                                    p['isPublished'] = True
+                                    details_updated = True
+                    
+                    if details_updated:
+                        with open(details_path, 'w', encoding='utf-8') as f:
+                            json.dump(details, f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                print(f"Failed to update post-details.json: {e}")
             
         return jsonify({'ok': True, 'count': updated_count})
 

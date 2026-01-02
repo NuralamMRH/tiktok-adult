@@ -17,6 +17,7 @@ type PublishResponse =
         failed: number;
         total?: number;
         failedSamples?: Array<{ link: string; error: string }>;
+        postedLinks?: string[];
       };
     }
   | { ok: false; error: string };
