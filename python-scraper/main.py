@@ -1489,6 +1489,16 @@ def run_flask_server():
             except Exception:
                 scrape_timeout = 900
             scrape_timeout = max(900, min(14400, int(scrape_timeout or 900)))
+            
+            # Cleanup previous run artifacts to ensure isolation
+            try:
+                if os.path.exists(os.path.join(OUTPUT_DIR, 'enhanced-extract-results.json')):
+                    os.remove(os.path.join(OUTPUT_DIR, 'enhanced-extract-results.json'))
+                if os.path.exists(os.path.join(OUTPUT_DIR, 'run-details.json')):
+                    os.remove(os.path.join(OUTPUT_DIR, 'run-details.json'))
+            except Exception:
+                pass
+
             exit_code = run_cmd({}, timeout_seconds=scrape_timeout)
             enhanced = read_json_file(os.path.join(OUTPUT_DIR, 'enhanced-extract-results.json')) or {}
             posts = enhanced.get('posts') if isinstance(enhanced, dict) else None
@@ -1523,17 +1533,23 @@ def run_flask_server():
             except Exception:
                 details_timeout = 1800
             details_timeout = max(1800, min(14400, int(details_timeout or 1800)))
-            exit_code = run_cmd({'DETAILS': '1'}, timeout_seconds=details_timeout)
+            
+            # Pass RUN_ID to the subprocess so extract_details can tag posts
+            env_vars = {'DETAILS': '1'}
+            if run_id:
+                env_vars['RUN_ID'] = str(run_id)
+            
+            exit_code = run_cmd(env_vars, timeout_seconds=details_timeout)
         else:
             exit_code = run_cmd({}, timeout_seconds=900)
 
         append_log(f'{utc_now_iso()} run={run_id} target done exit={exit_code}', live=True)
 
-        details = read_json_file(os.path.join(OUTPUT_DIR, 'post-details.json')) or {}
+        run_details = read_json_file(os.path.join(OUTPUT_DIR, 'run-details.json')) or {}
         enhanced = read_json_file(os.path.join(OUTPUT_DIR, 'enhanced-extract-results.json')) or {}
         summary = read_json_file(os.path.join(OUTPUT_DIR, 'scraping-summary.json')) or {}
 
-        posts = details.get('posts') if isinstance(details, dict) else None
+        posts = run_details.get('posts') if isinstance(run_details, dict) else None
         if not posts:
             posts = enhanced.get('posts') if isinstance(enhanced, dict) else None
         posts = posts or []
@@ -3364,7 +3380,8 @@ if __name__ == '__main__':
                 done_count += 1
                 if (idx - last_flush) >= 5 or idx == (total - 1):
                     try:
-                        with open(os.path.join(OUTPUT_DIR, 'post-details.json'), 'w', encoding='utf-8') as f:
+                        # Write run-specific details (intermediate)
+                        with open(os.path.join(OUTPUT_DIR, 'run-details.json'), 'w', encoding='utf-8') as f:
                             json.dump({'count': done_count, 'posts': [r for r in results if isinstance(r, dict)]}, f, ensure_ascii=False, indent=2)
                         last_flush = idx
                     except Exception:
@@ -3390,8 +3407,47 @@ if __name__ == '__main__':
                             'error': 'Missing details',
                         }
                     )
-            with open(os.path.join(OUTPUT_DIR, 'post-details.json'), 'w', encoding='utf-8') as f:
-                json.dump({'count': len(final_posts), 'posts': final_posts}, f, ensure_ascii=False, indent=2)
+            # Write run-specific details
+            try:
+                with open(os.path.join(OUTPUT_DIR, 'run-details.json'), 'w', encoding='utf-8') as f:
+                    json.dump({'count': len(final_posts), 'posts': final_posts}, f, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
+
+            # Update global post-details.json (merge)
+            try:
+                details_path = os.path.join(OUTPUT_DIR, 'post-details.json')
+                global_posts = []
+                if os.path.exists(details_path):
+                    try:
+                        with open(details_path, 'r', encoding='utf-8') as f:
+                            gd = json.load(f)
+                            global_posts = gd.get('posts') if isinstance(gd, dict) else []
+                            if not isinstance(global_posts, list):
+                                global_posts = []
+                    except Exception:
+                        global_posts = []
+                
+                # Create map of existing posts
+                global_map = {str(p.get('link')): p for p in global_posts if isinstance(p, dict) and p.get('link')}
+                
+                # Update with new details
+                for p in final_posts:
+                    if isinstance(p, dict) and p.get('link'):
+                        link = str(p.get('link'))
+                        # Preserve isPublished if exists in global (handle concurrent updates)
+                        if link in global_map:
+                            existing = global_map[link]
+                            if existing.get('isPublished'):
+                                p['isPublished'] = True
+                        global_map[link] = p
+                
+                new_global_posts = list(global_map.values())
+                with open(details_path, 'w', encoding='utf-8') as f:
+                    json.dump({'count': len(new_global_posts), 'posts': new_global_posts}, f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                print(f"Failed to update global post-details.json: {e}")
+            
             print(json.dumps({'count': len(final_posts)}, ensure_ascii=False))
             write_external_progress(
                 {
