@@ -103,7 +103,7 @@ gtag('config', '${GA_ID}', { page_path: window.location.pathname });
       gaLoader?.remove();
       gaInit?.remove();
       adstraHead?.remove();
-      adstraPop?.remove();
+      (adstraPop as any)?.remove();
     };
   }, [isClient, GA_ID, showAdstraAds]);
 

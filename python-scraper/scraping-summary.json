@@ -1,10 +1,10 @@
 {
-  "total_posts": 30,
-  "new_posts": 30,
-  "posts_with_videos": 30,
-  "posts_with_images": 30,
+  "total_posts": 150,
+  "new_posts": 120,
+  "posts_with_videos": 150,
+  "posts_with_images": 150,
   "errors": 0,
-  "pages_completed": 1,
-  "page_limit": 1,
-  "last_run_at": "2026-01-03 05:18:47"
+  "pages_completed": 5,
+  "page_limit": 5,
+  "last_run_at": "2026-01-03 06:36:10"
 }

@@ -910,7 +910,7 @@ def scrape():
                 allow_blocked_html=True,
             )
     else:
-        page_iter = range(start_page, 0, -1) if is_desc else range(start_page, PAGE_LIMIT + 1)
+        page_iter = range(PAGE_LIMIT, start_page - 1, -1) if is_desc else range(start_page, PAGE_LIMIT + 1)
         for page in page_iter:
             if MAX_POSTS > 0 and len(new_results) >= MAX_POSTS:
                 break
@@ -1240,6 +1240,7 @@ def run_flask_server():
             return s
 
         base_url = normalize_text(target.get('baseUrl') or target.get('base_url') or '')
+        start_page = int(target.get('startPage') or target.get('start_page') or 1)
         page_limit = int(target.get('pageLimit') or target.get('page_limit') or 1)
         page_order = normalize_text(target.get('pageOrder') or target.get('page_order') or 'asc').lower()
         max_posts_raw = target.get('maxPosts')
@@ -1260,6 +1261,7 @@ def run_flask_server():
         env = os.environ.copy()
         if base_url:
             env['SCRAPER_BASE_URL'] = base_url
+        env['SCRAPE_START_PAGE'] = str(start_page)
         env['PAGE_LIMIT'] = str(page_limit)
         if page_order:
             env['SCRAPE_PAGE_ORDER'] = str(page_order)
@@ -3152,7 +3154,7 @@ def run_flask_server():
     @app.post('/api/runs/<run_id>/mark-published')
     def runs_mark_published(run_id):
         data = request.get_json(silent=True) or {}
-        links = set(data.get('links') or [])
+        links = set(data.get('links') or data.get('posts') or [])
         if not links:
              return jsonify({'ok': True, 'count': 0})
         
