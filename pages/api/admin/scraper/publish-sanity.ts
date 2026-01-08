@@ -1,5 +1,4 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import path from 'path';
 
 export const config = {
   api: {
@@ -30,17 +29,7 @@ function setCors(res: NextApiResponse) {
 }
 
 async function loadPublisher() {
-  const scriptPath = path.resolve(
-    process.cwd(),
-    'scripts',
-    'publish-sanity.js',
-  );
-  let mod: any = null;
-  try {
-    mod = await import(scriptPath);
-  } catch {
-    mod = await import('../../../../scripts/publish-sanity.js');
-  }
+  const mod: any = await import('../../../../scripts/publish-sanity.js');
   const fn = mod?.publishPostsToSanity || mod?.default?.publishPostsToSanity;
   if (typeof fn !== 'function')
     throw new Error('publishPostsToSanity export not found');
