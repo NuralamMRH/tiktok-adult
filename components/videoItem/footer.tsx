@@ -48,7 +48,7 @@ function InlineAd({
   return <div ref={containerRef} className='h-full w-full' />;
 }
 
-export function VideoFooter({ creator, caption, createdAt }: Props) {
+export function VideoFooter({ creator, caption }: Props) {
   const [isTextExpanded, setIsTextExpanded] = useState(false);
   const { ref: textRef, isOverflow: isTextOverflow } =
     useCheckOverflow<HTMLDivElement>();
