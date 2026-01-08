@@ -318,11 +318,20 @@ export default function VideoItem({
             ref={backgroundVideoRef}
             aria-hidden
             tabIndex={-1}
-            src={video.asset.url}
+            src={video?.asset?.url || ''}
             loop
             muted
             preload='metadata'
             playsInline
+            onError={() => {
+              try {
+                const v = backgroundVideoRef.current;
+                if (v) v.removeAttribute('src');
+                const src = video?.asset?.url || '';
+                const link = (post as any)?.sourceLink || '';
+                console.log('video load failed', { src, link });
+              } catch {}
+            }}
             className='pointer-events-none absolute inset-0 z-0 h-full w-full scale-110 object-cover object-center opacity-60 blur-2xl sm:hidden'
           />
 
@@ -364,7 +373,7 @@ export default function VideoItem({
 
           <video
             ref={videoRef}
-            src={video.asset.url}
+            src={video?.asset?.url || ''}
             loop
             muted={isMute}
             preload='metadata'
@@ -375,6 +384,9 @@ export default function VideoItem({
                 if (v) {
                   v.removeAttribute('src');
                 }
+                const src = video?.asset?.url || '';
+                const link = (post as any)?.sourceLink || '';
+                console.log('video load failed', { src, link });
               } catch {}
             }}
             className='video relative z-10 h-full w-full cursor-pointer object-contain object-center sm:object-cover'

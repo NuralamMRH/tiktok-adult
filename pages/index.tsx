@@ -69,7 +69,7 @@ export default function Home({
   } = useStore();
 
   const videoContainerRef = useRef<HTMLDivElement | null>(null);
-  const [feedVideos, setFeedVideos] = useState<Video[]>(videos);
+  const [feedVideos, setFeedVideos] = useState<Video[]>([]);
   const [page, setPage] = useState(initialPage);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -80,6 +80,36 @@ export default function Home({
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  const hasPlayable = useCallback((v: any) => {
+    const src = v?.video?.asset?.url || v?.externalVideoUrl || '';
+    return typeof src === 'string' && src.trim().length > 0;
+  }, []);
+
+  const filterAndLogVideos = useCallback(
+    (arr: any[]) => {
+      const out: any[] = [];
+      for (const v of Array.isArray(arr) ? arr : []) {
+        if (hasPlayable(v)) {
+          out.push(v);
+        } else {
+          const src = v?.video?.asset?.url || '';
+          const link = v?.sourceLink || '';
+          console.log('skip video without playable url', {
+            src,
+            link,
+            id: v?._id,
+          });
+        }
+      }
+      return out as Video[];
+    },
+    [hasPlayable],
+  );
+
+  useEffect(() => {
+    setFeedVideos(filterAndLogVideos(videos || []));
+  }, [videos, filterAndLogVideos]);
 
   async function getAllUsers() {
     const { data: allUsers } = await axios.get(`${ROOT_URL}/api/user`);
@@ -483,13 +513,13 @@ export default function Home({
       const { data } = await axios.get(
         `${ROOT_URL}/api/post?currentUserId=${currentUserId ?? ''}&page=${nextPage}&limit=${limit}`,
       );
-      const newVideos: Video[] = data || [];
+      const newVideos: Video[] = filterAndLogVideos(data || []);
       if (!newVideos.length) {
         // loop back to the beginning
         const { data: loopData } = await axios.get(
           `${ROOT_URL}/api/post?currentUserId=${currentUserId ?? ''}&page=1&limit=${limit}`,
         );
-        const loopVideos: Video[] = loopData || [];
+        const loopVideos: Video[] = filterAndLogVideos(loopData || []);
         if (!loopVideos.length) {
           setHasMore(false);
         } else {
