@@ -572,7 +572,7 @@ async function publishPostsToSanity(posts, opts = {}) {
         const doc = {
           _id: postIdForSourceLink(sourceLink),
           _type: 'post',
-          caption: clean(p.title),
+          caption: clean(p.title + 'xxx deshi'),
           sourceLink,
           imageUrl: p.image_url || '',
           ...(asset
