@@ -3,8 +3,6 @@ import { CgMathPlus } from 'react-icons/cg';
 import { signIn, useSession } from 'next-auth/react';
 import { FaUserCircle } from 'react-icons/fa';
 import User from './User';
-
-import useStore from '../store';
 import { BiMenuAltLeft } from 'react-icons/bi';
 import { toggleSidebarDrawer } from '../utils/sidebar-drawer';
 
