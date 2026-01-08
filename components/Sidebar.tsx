@@ -8,6 +8,10 @@ import { useState } from 'react';
 import MobileSearchBarModal from './modal/MobileSearchBarModal';
 import { closeSidebar } from '../utils/sidebar-drawer';
 import { createPortal } from 'react-dom';
+import LogoLight from '../utils/LogoLight';
+import LogoDark from '../utils/LogoDark';
+import useStore from '../store';
+import { GiVideoCamera } from 'react-icons/gi';
 
 type OverlayProps = {
   onClose: () => void;
@@ -25,6 +29,7 @@ export default function Sidebar() {
   const [showMobileSearchBar, setShowMobileSearchBar] = useState(false);
 
   const router = useRouter();
+  const { theme } = useStore();
 
   return (
     <aside className='side-bar hide-sidebar fixed top-0 z-30 flex h-full w-full max-w-[21rem] flex-col overflow-y-auto overflow-x-hidden bg-white p-2 shadow dark:bg-dark lg:static lg:bg-transparent lg:p-0 lg:shadow-none'>
@@ -43,32 +48,40 @@ export default function Sidebar() {
         )}
 
         <div className='flex gap-2'>
-          <Link
-            onClick={() => closeSidebar()}
-            href='/'
-            aria-label='Home'
-            className={`${
-              router.asPath === '/'
-                ? 'bg-gray-100 text-primary dark:bg-black'
-                : 'border-gray-200 bg-gray-100 hover:border-gray-300 hover:bg-gray-200 dark:bg-darkBtn dark:text-white dark:hover:bg-darkBtnHover'
-            } flex w-full items-center justify-start rounded-sm border border-gray-200 p-2 text-lg font-bold dark:border-darkSecondary`}
-          >
-            <RiHomeSmileFill size={22} />
-            <p className='ml-2'>For You</p>
+          <Link href='/' aria-label='TikTok_logo' className={`mb-4 ml-4 mt-4`}>
+            {theme === 'dark' ? <LogoDark /> : <LogoLight />}
           </Link>
-
-          <button
-            aria-label='search'
-            onClick={() => setShowMobileSearchBar(true)}
-            className='flex w-full items-center justify-start border border-gray-200 bg-gray-100 p-2 text-lg font-bold hover:border-gray-300 hover:bg-gray-200 focus-visible:outline-none dark:border-darkSecondary dark:bg-darkBtn dark:text-white dark:hover:bg-darkBtnHover'
-          >
-            <IoSearchCircle size={25} />
-            <p className='ml-2'>Search</p>
-          </button>
         </div>
 
-        <div className='my-4 h-[1px] bg-gray-200 dark:bg-darkBorder' />
+        <Link
+          onClick={() => closeSidebar()}
+          href='/'
+          aria-label='Home'
+          className={`${
+            router.asPath === '/'
+              ? 'bg-gray-100 text-primary dark:bg-black'
+              : 'border-gray-200 bg-gray-100 hover:border-gray-300 hover:bg-gray-200 dark:bg-darkBtn dark:text-white dark:hover:bg-darkBtnHover'
+          } flex w-full items-center justify-start rounded-sm border border-gray-200 p-2 text-lg font-bold dark:border-darkSecondary`}
+        >
+          <RiHomeSmileFill size={22} />
+          <p className='ml-2'>For You</p>
+        </Link>
 
+        <button
+          aria-label='search'
+          onClick={() => setShowMobileSearchBar(true)}
+          className='flex w-full items-center justify-start border border-gray-200 bg-gray-100 p-2 text-lg font-bold hover:border-gray-300 hover:bg-gray-200 focus-visible:outline-none dark:border-darkSecondary dark:bg-darkBtn dark:text-white dark:hover:bg-darkBtnHover'
+        >
+          <IoSearchCircle size={25} />
+          <p className='ml-2'>Search</p>
+        </button>
+        <button
+          aria-label='video'
+          className='mb-4 flex w-full items-center justify-start border border-gray-200 bg-gray-100 p-2 text-lg font-bold hover:border-gray-300 hover:bg-gray-200 focus-visible:outline-none dark:border-darkSecondary dark:bg-darkBtn dark:text-white dark:hover:bg-darkBtnHover'
+        >
+          <GiVideoCamera size={25} />
+          <p className='ml-2'>Live</p>
+        </button>
         <PopularTopics />
       </div>
 

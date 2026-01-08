@@ -3,8 +3,7 @@ import { CgMathPlus } from 'react-icons/cg';
 import { signIn, useSession } from 'next-auth/react';
 import { FaUserCircle } from 'react-icons/fa';
 import User from './User';
-import LogoLight from '../utils/LogoLight';
-import LogoDark from '../utils/LogoDark';
+
 import useStore from '../store';
 import { BiMenuAltLeft } from 'react-icons/bi';
 import { toggleSidebarDrawer } from '../utils/sidebar-drawer';
@@ -16,19 +15,9 @@ type Props = {
 export default function Navbar({ hasSidebar }: Props) {
   const { data: user }: any = useSession();
 
-  const { theme } = useStore();
-
   return (
     <nav className='fixed left-0 right-0 top-0 z-10 flex h-16 items-center justify-center bg-transparent'>
       <div className='relative mx-auto h-full w-full px-2 py-2 lg:px-4'>
-        <Link
-          href='/'
-          aria-label='TikTok_logo'
-          className={`absolute left-2 top-2 ${!hasSidebar ? 'block' : 'hidden lg:block'} `}
-        >
-          {theme === 'dark' ? <LogoDark /> : <LogoLight />}
-        </Link>
-
         {hasSidebar && (
           <button
             onClick={toggleSidebarDrawer}

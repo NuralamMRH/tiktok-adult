@@ -171,18 +171,54 @@ function buildVideoFetchHeaders({ videoUrl, referer }) {
   return headers;
 }
 
+function rewriteCdn(u) {
+  const s = String(u || '').trim();
+  if (!s) return s;
+  if (!s.includes('/get_file/')) return s;
+  let host = safeHost(s);
+  if (!host) return s;
+  host = host.replace(/^www\./, '');
+  const parts = s.split('/');
+  if (parts.length < 5) return s;
+  const tail = parts[parts.length - 1];
+  const m = tail.match(/^(\d+)\.(mp4|mov|m3u8)/i);
+  if (!m) return s;
+  const ext = m[2].toLowerCase();
+  const id2 = parts[parts.length - 2];
+  const res = parts[parts.length - 3];
+  if (!/^\d+$/.test(id2) || !/^\d+$/.test(res)) return s;
+  const cdnBaseEnv = pickEnv('CDN_URL', 'NEXT_PUBLIC_CDN_URL').replace(
+    /\/+$/,
+    '',
+  );
+  const cdnBase = cdnBaseEnv || `https://cdn.${host}`;
+  return `${cdnBase}/${res}/${id2}/${id2}.${ext}`;
+}
+
 async function fetchVideoBuffer(url, referer) {
-  const videoUrl = String(url || '');
+  const videoUrl = rewriteCdn(String(url || ''));
   const internal = pickScraperInternalUrl();
   const ref = String(referer || '').trim();
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+  const cdnBaseEnv = pickEnv('CDN_URL', 'NEXT_PUBLIC_CDN_URL').replace(
+    /\/+$/,
+    '',
+  );
+  const isCdn = (u) => {
+    const s = String(u || '').trim();
+    if (!s) return false;
+    if (cdnBaseEnv && s.startsWith(cdnBaseEnv)) return true;
+    return /^https?:\/\/cdn\./i.test(s);
+  };
 
   try {
     if (internal) {
       const proxyUrl = new URL('/api/media', internal);
       proxyUrl.searchParams.set('url', videoUrl);
-      if (ref) proxyUrl.searchParams.set('referer', ref);
+      const proxRef = pickRefererForUrl(videoUrl, ref);
+      if (proxRef) proxyUrl.searchParams.set('referer', proxRef);
       try {
         const pr = await fetch(String(proxyUrl), {
           redirect: 'follow',
@@ -193,15 +229,26 @@ async function fetchVideoBuffer(url, referer) {
         const contentType = pr.headers.get('content-type') || 'video/mp4';
         return { buf, contentType };
       } catch (e) {
-        if (e.name === 'AbortError') throw new Error('video fetch timeout');
+        // Fall through to direct fetch on proxy timeout or error
       }
     }
 
-    const res = await fetch(videoUrl, {
-      redirect: 'follow',
-      headers: buildVideoFetchHeaders({ videoUrl, referer: ref }),
-      signal: controller.signal,
-    });
+    const res = await fetch(
+      videoUrl,
+      isCdn(videoUrl)
+        ? {
+            redirect: 'follow',
+            signal: controller.signal,
+          }
+        : {
+            redirect: 'follow',
+            headers: buildVideoFetchHeaders({
+              videoUrl,
+              referer: pickRefererForUrl(videoUrl, ref),
+            }),
+            signal: controller.signal,
+          },
+    );
     if (!res.ok) throw new Error(`video fetch failed ${res.status}`);
     const buf = await res.arrayBuffer();
     const contentType = res.headers.get('content-type') || 'video/mp4';
@@ -216,16 +263,13 @@ async function uploadVideoAsset(client, url, { referer } = {}) {
   try {
     payload = await fetchVideoBuffer(url, pickRefererForUrl(url, referer));
   } catch (e1) {
-    const msg = String(e1?.message || '');
-    // Don't retry on 404 or timeout
-    if (msg.includes('404') || msg.includes('timeout')) throw e1;
-
     const fallbackRef = safeOrigin(url);
     const originalRef = String(referer || '').trim();
     if (fallbackRef && fallbackRef !== originalRef) {
       payload = await fetchVideoBuffer(url, fallbackRef);
     } else {
-      throw e1;
+      // Final fallback: attempt without referer
+      payload = await fetchVideoBuffer(url, '');
     }
   }
   const filename =
@@ -503,11 +547,17 @@ async function publishPostsToSanity(posts, opts = {}) {
           return;
         }
         const videoUrl = p.video_src || p.video_url;
-        if (!videoUrl) return;
+        const finalUrl = rewriteCdn(videoUrl);
+        if (!finalUrl) return;
         const owner = pick(autoUsers);
-        const asset = await uploadVideoAsset(client, videoUrl, {
-          referer: sourceLink,
-        });
+        let asset = null;
+        try {
+          asset = await uploadVideoAsset(client, finalUrl, {
+            referer: sourceLink,
+          });
+        } catch (_) {
+          // Proceed without asset to ensure posting continues
+        }
         const likeCount = pickLikeCount();
         const likeDocCount = clampInt(
           Math.round(likeCount * (0.002 + Math.random() * 0.012)),
@@ -525,10 +575,16 @@ async function publishPostsToSanity(posts, opts = {}) {
           caption: clean(p.title),
           sourceLink,
           imageUrl: p.image_url || '',
-          video: {
-            _type: 'file',
-            asset: { _type: 'reference', _ref: asset._id },
-          },
+          ...(asset
+            ? {
+                video: {
+                  _type: 'file',
+                  asset: { _type: 'reference', _ref: asset._id },
+                },
+              }
+            : {
+                externalVideoUrl: finalUrl,
+              }),
           likeCount,
           userId: owner._id,
           postedBy: { _type: 'postedBy', _ref: owner._id },

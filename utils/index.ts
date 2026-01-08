@@ -2,10 +2,12 @@ import type { IncomingMessage } from 'http';
 
 export const ROOT_URL =
   typeof window === 'undefined'
-    ? (process.env.NEXT_PUBLIC_ROOT_URL ||
+    ? (
+        process.env.NEXT_PUBLIC_ROOT_URL ||
         process.env.NEXTAUTH_URL ||
-        'http://xxxdeshi.xyz/').replace(/\/+$/, '')
-    : '';
+        'http://xxxdeshi.xyz/'
+      ).replace(/\/+$/, '')
+    : (window.location.origin || '').replace(/\/+$/, '');
 
 export function getRequestOrigin(req?: IncomingMessage) {
   const xfProto = req?.headers?.['x-forwarded-proto'];

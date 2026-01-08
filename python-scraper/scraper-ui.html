@@ -62,7 +62,7 @@
     <!-- Sidebar -->
     <aside
       id="sidebar"
-      class="glass-card z-50 flex h-full w-64 flex-col border-r border-slate-900"
+      class="glass-card z-50 hidden h-full w-full flex-col border-r border-slate-900 md:flex md:w-64"
     >
       <div class="p-6">
         <div class="mb-10 flex items-center gap-3">
@@ -74,6 +74,13 @@
           <h1 class="text-xl font-black italic tracking-tighter">
             SCRAPE<span class="text-indigo-500">FLOW</span>
           </h1>
+          <button
+            class="ml-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-800 text-slate-300 md:hidden"
+            onclick="document.getElementById('sidebar').classList.add('hidden')"
+            aria-label="Close Sidebar"
+          >
+            <i class="fas fa-times"></i>
+          </button>
         </div>
 
         <nav class="space-y-2">
@@ -134,10 +141,20 @@
     <main class="relative flex flex-1 flex-col overflow-hidden">
       <!-- Header -->
       <header
-        class="glass-card flex h-20 items-center justify-between border-b border-slate-900 px-8"
+        class="glass-card flex h-20 items-center justify-between border-b border-slate-900 px-4 md:px-8"
       >
         <div class="flex items-center gap-6">
-          <h2 id="pageTitle" class="text-xl font-bold">Targets Manager</h2>
+          <button
+            class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-800 text-slate-300 md:hidden"
+            onclick="
+              document.getElementById('sidebar').classList.toggle('hidden')
+            "
+          >
+            <i class="fas fa-bars"></i>
+          </button>
+          <h2 id="pageTitle" class="text-lg font-bold md:text-xl">
+            Targets Manager
+          </h2>
           <div class="h-6 w-px bg-slate-800"></div>
           <div class="flex gap-3">
             <button
@@ -168,7 +185,7 @@
             <div class="flex flex-col gap-3 md:flex-row md:items-center">
               <select
                 id="presetSelect"
-                class="min-w-[240px] rounded-2xl border border-slate-800 bg-slate-900 px-6 py-3 text-sm focus:border-indigo-500 focus:outline-none"
+                class="w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none md:min-w-[240px]"
               ></select>
               <button
                 id="loadPresetBtn"
@@ -197,7 +214,7 @@
 
           <div
             id="targetsGrid"
-            class="grid grid-cols-1 gap-6 xl:grid-cols-2"
+            class="grid grid-cols-1 gap-6 md:grid-cols-1 xl:grid-cols-2"
           ></div>
         </div>
 
@@ -467,7 +484,7 @@
       class="modal-overlay fixed inset-0 z-[100] flex hidden items-center justify-center p-4"
     >
       <div
-        class="glass-card w-full max-w-4xl overflow-hidden rounded-[3rem] border-slate-800 shadow-2xl"
+        class="glass-card w-full max-w-4xl overflow-y-auto rounded-[3rem] border-slate-800 shadow-2xl"
       >
         <div class="space-y-10 p-10 lg:p-14">
           <div class="flex items-start justify-between">
@@ -496,6 +513,18 @@
                   id="targetBaseUrlInput"
                   type="text"
                   placeholder="https://..."
+                  class="w-full rounded-2xl border border-slate-800 bg-black px-6 py-4 font-medium transition focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+              <div class="space-y-2">
+                <label
+                  class="text-[10px] font-black uppercase tracking-widest text-slate-500"
+                  >CDN URL</label
+                >
+                <input
+                  id="targetCdnUrlInput"
+                  type="text"
+                  placeholder="https://cdn..."
                   class="w-full rounded-2xl border border-slate-800 bg-black px-6 py-4 font-medium transition focus:border-indigo-500 focus:outline-none"
                 />
               </div>
@@ -929,6 +958,7 @@
 
       function normalizeTarget(t) {
         const baseUrl = String(t?.baseUrl || t?.base_url || '').trim();
+        const cdnUrl = String(t?.cdnUrl || t?.cdn_url || '').trim();
         const startPage = Number.isFinite(Number(t?.startPage ?? t?.start_page))
           ? Number(t.startPage ?? t.start_page)
           : 1;
@@ -961,6 +991,7 @@
               : {};
         return {
           baseUrl,
+          cdnUrl,
           startPage,
           pageLimit,
           query,
@@ -1005,6 +1036,9 @@
           .map((t) => {
             const n = normalizeTarget(t);
             n.config = mergeConfig(baseConfig, n.config || {});
+            if ((!n.cdnUrl || !String(n.cdnUrl).trim()) && p.cdnUrl) {
+              n.cdnUrl = String(p.cdnUrl).trim();
+            }
             return n;
           })
           .filter((t) => t.baseUrl);
@@ -1072,12 +1106,30 @@
               </button>
             </div>
           `;
+          const runBtn = card.querySelector('[data-action="run"]');
+          const editBtn = card.querySelector('[data-action="edit"]');
+          if (state.runningRunId && state.runningTargetBaseUrl === t.baseUrl) {
+            if (runBtn) {
+              runBtn.disabled = true;
+              runBtn.innerHTML =
+                '<i class="fas fa-circle-notch fa-spin mr-2"></i>RUNNING';
+            }
+            if (editBtn) {
+              editBtn.textContent = 'STOP';
+              editBtn.className =
+                'flex-1 rounded-xl bg-rose-600/10 py-3 text-xs font-bold text-rose-500 transition hover:bg-rose-600 hover:text-white';
+              editBtn.setAttribute('data-action', 'stop');
+            }
+          }
           card
             .querySelector('[data-action="run"]')
             .addEventListener('click', () => runTargets([t]));
-          card
-            .querySelector('[data-action="edit"]')
-            .addEventListener('click', () => openTargetModal(i));
+          const editEl = card.querySelector('[data-action="edit"]');
+          if (editEl?.getAttribute('data-action') === 'stop') {
+            editEl.addEventListener('click', () => stopCurrentRun());
+          } else {
+            editEl?.addEventListener('click', () => openTargetModal(i));
+          }
           card
             .querySelector('[data-action="delete"]')
             .addEventListener('click', () => deleteTarget(i));
@@ -1092,6 +1144,7 @@
             ? state.targets[index]
             : normalizeTarget({
                 baseUrl: '',
+                cdnUrl: '',
                 startPage: 1,
                 pageLimit: 5,
                 mode: 'scrape',
@@ -1099,7 +1152,15 @@
                 query: '',
                 scrapeOrder: 'asc',
               });
+        if (state.editingTargetIndex === null) {
+          const preset = state.presets.find(
+            (x) => x.id === state.selectedPresetId,
+          );
+          const presetCdn = String(preset?.cdnUrl || '').trim();
+          if (!t.cdnUrl && presetCdn) t.cdnUrl = presetCdn;
+        }
         el('targetBaseUrlInput').value = t.baseUrl || '';
+        el('targetCdnUrlInput').value = t.cdnUrl || '';
         el('targetStartPageInput').value = t.startPage || 1;
         el('targetEndPageInput').value = t.pageLimit || 5;
         el('targetMaxPostsInput').value = t.maxPosts || '';
@@ -1221,6 +1282,7 @@
           safeJsonParse(el('targetConfigTextarea').value || '') || {};
         const t = normalizeTarget({
           baseUrl,
+          cdnUrl: String(el('targetCdnUrlInput').value || '').trim(),
           startPage: s,
           pageLimit: e,
           maxPosts: el('targetMaxPostsInput').value,
@@ -1296,12 +1358,20 @@
         toggleModal('targetModal', false);
         state.editingTargetIndex = null;
         renderTargets();
+        try {
+          await apiSend('api/targets', 'POST', { data: state.targets });
+        } catch {}
         notify('Target saved', 'success');
       }
 
       function deleteTarget(index) {
         state.targets.splice(index, 1);
         renderTargets();
+        (async () => {
+          try {
+            await apiSend('api/targets', 'POST', { data: state.targets });
+          } catch {}
+        })();
         notify('Target removed', 'success');
       }
 
@@ -1314,6 +1384,10 @@
           const r = await apiSend('api/runs', 'POST', { targets });
           const runId = r?.data?.runId || '';
           if (runId) state.selectedRunId = runId;
+          if (Array.isArray(targets) && targets.length === 1) {
+            state.runningRunId = runId;
+            state.runningTargetBaseUrl = targets[0]?.baseUrl || '';
+          }
           notify(runId ? `Run accepted ${runId}` : 'Run accepted', 'success');
           switchTab('active-runs');
           await refreshRuns();
@@ -1921,6 +1995,13 @@
           const running = !!pr.running;
           const runId = String(pr.runId || state.selectedRunId || '');
           const baseUrl = String(pr.baseUrl || pr.base_url || '');
+          if (running) {
+            state.runningRunId = runId;
+            state.runningTargetBaseUrl = baseUrl;
+          } else {
+            state.runningRunId = '';
+            state.runningTargetBaseUrl = '';
+          }
           el('liveBaseUrl').textContent = baseUrl
             ? targetLabel({ baseUrl })
             : 'Idle';
@@ -1973,8 +2054,10 @@
           );
           if (!runId) {
             el('stopRunBtn').classList.add('opacity-40');
+            el('stopRunBtn').classList.add('pointer-events-none');
           } else {
             el('stopRunBtn').classList.remove('opacity-40');
+            el('stopRunBtn').classList.remove('pointer-events-none');
           }
         } catch {
           el('liveBaseUrl').textContent = 'Idle';
@@ -2051,6 +2134,9 @@
         renderTargets();
         toggleModal('importModal', false);
         notify('Configuration imported', 'success');
+        try {
+          await apiSend('api/targets', 'POST', { data: state.targets });
+        } catch {}
       }
 
       function attachHandlers() {
@@ -2059,6 +2145,10 @@
           state.selectedPresetId = presetId;
           const p = state.presets.find((x) => x.id === presetId);
           const newTargets = targetsFromPreset(p);
+          if (!Array.isArray(newTargets) || newTargets.length === 0) {
+            notify('No targets found in preset', 'error');
+            return;
+          }
 
           let added = 0;
           let updated = 0;
@@ -2079,6 +2169,11 @@
             `Preset loaded: ${added} added, ${updated} updated`,
             'success',
           );
+          (async () => {
+            try {
+              await apiSend('api/targets', 'POST', { data: state.targets });
+            } catch {}
+          })();
         });
 
         el('importPresetBtn')?.addEventListener('click', () =>
@@ -2088,6 +2183,36 @@
         el('saveTargetBtn')?.addEventListener('click', saveTargetFromModal);
         el('stopRunBtn')?.addEventListener('click', stopCurrentRun);
         el('reloadLogBtn')?.addEventListener('click', refreshLog);
+        const clearLiveBtn = document.createElement('button');
+        clearLiveBtn.className =
+          'rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-xs font-bold transition hover:bg-slate-800';
+        clearLiveBtn.textContent = 'Clear Live';
+        clearLiveBtn.addEventListener('click', async () => {
+          try {
+            await apiSend('api/clear-live', 'POST', {});
+            notify('Live cleared', 'success');
+            await refreshLog();
+            await refreshProgress();
+          } catch (e) {
+            notify(String(e.message || e), 'error');
+          }
+        });
+        el('reloadLogBtn')?.parentElement?.appendChild(clearLiveBtn);
+        const clearResultsBtn = document.createElement('button');
+        clearResultsBtn.className =
+          'rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-xs font-bold transition hover:bg-slate-800';
+        clearResultsBtn.textContent = 'Clear Results';
+        clearResultsBtn.addEventListener('click', async () => {
+          try {
+            await apiSend('api/clear-results', 'POST', {});
+            notify('Results cleared', 'success');
+            await refreshRuns();
+            el('resultsGrid').innerHTML = '';
+          } catch (e) {
+            notify(String(e.message || e), 'error');
+          }
+        });
+        el('reloadLogBtn')?.parentElement?.appendChild(clearResultsBtn);
         el('downloadCsvBtn')?.addEventListener('click', downloadCsv);
         el('deleteRunBtn')?.addEventListener('click', deleteSelectedRun);
         el('publishSanityBtn')?.addEventListener('click', publishToSanity);
@@ -2122,8 +2247,18 @@
           state.presets = r.data || [];
           state.selectedPresetId = state.presets[0]?.id || '';
           renderPresets();
-          const p = state.presets.find((x) => x.id === state.selectedPresetId);
-          state.targets = targetsFromPreset(p);
+          const saved = await apiGet('api/targets').catch(() => ({ data: [] }));
+          const savedTargets = Array.isArray(saved?.data) ? saved.data : [];
+          if (savedTargets.length) {
+            state.targets = savedTargets
+              .map(normalizeTarget)
+              .filter((t) => t.baseUrl);
+          } else {
+            const p = state.presets.find(
+              (x) => x.id === state.selectedPresetId,
+            );
+            state.targets = targetsFromPreset(p);
+          }
           renderTargets();
         } catch (e) {
           notify(String(e.message || e), 'error');

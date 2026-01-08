@@ -4,8 +4,25 @@ import json
 import time
 import sys
 from urllib.parse import urljoin, urlparse
+import requests
+from flask import Flask, jsonify, request, send_from_directory
+from bs4 import BeautifulSoup
+import lxml
+import sqlite3
+
+def extract_video_url_from_script(html_content):
+    if not html_content:
+        return None
+    # Regex to find video_url in JavaScript, handling different quote styles
+    # It looks for something like: video_url: 'https://...'
+    match = re.search(r"""['"]?video_url['"]?\s*:\s*['"]([^'"]+)['"]""", html_content)
+    if match:
+        # The URL might have escaped slashes
+        return match.group(1).replace('\\/', '/')
+    return None
 
 BASE_URL = os.environ.get('SCRAPER_BASE_URL', 'https://mmsbaba.com')
+CDN_URL = os.environ.get('CDN_URL', '').strip()
 PAGE_LIMIT = int(os.environ.get('PAGE_LIMIT', '2'))
 try:
     MAX_POSTS = int(os.environ.get('MAX_POSTS', '0') or '0')
@@ -411,6 +428,37 @@ def normalize_media_url(src):
         out = out[:-1]
     return out
 
+def rewrite_cdn_url(url):
+    try:
+        u = str(url or '').strip()
+        if not u:
+            return u
+        if '/get_file/' in u:
+            base = (CDN_URL or '').strip().rstrip('/')
+            try:
+                pu = u.split('?', 1)[0].rstrip('/')
+            except Exception:
+                pu = u
+            parts = pu.split('/')
+            if len(parts) >= 5:
+                tail = parts[-1]
+                m = re.match(r'^(\d+)\.(mp4|mov|m3u8)', tail, flags=re.I)
+                if m:
+                    ext = m.group(2).lower()
+                    id2 = parts[-2]
+                    res = parts[-3]
+                    if id2.isdigit() and res.isdigit():
+                        if not base:
+                            h = re.sub(r'^https?://', '', (BASE_URL or '')).split('/')[0].lower()
+                            h = re.sub(r'^www\.', '', h)
+                            if h:
+                                base = f'https://cdn.{h}'
+                        if base:
+                            return f'{base}/{res}/{id2}/{id2}.{ext}'
+    except Exception:
+        pass
+    return url
+
 def first_media_url_from_text(html):
     t = html or ''
     if not t:
@@ -446,7 +494,27 @@ def media_urls_from_text(html, *, limit=80):
                 return out
     return out
 
-def extract_video_url_from_soup(soup, html=None):
+def resolve_redirects(url, session):
+    try:
+        response = session.head(url, allow_redirects=True, timeout=5)
+        return response.url
+    except requests.exceptions.RequestException:
+        return url
+
+def extract_video_url_from_soup(soup, html=None, session=None):
+    if session is None:
+        try:
+            session = requests.Session()
+        except Exception:
+            session = None
+    # First, try to get the URL from the script
+    script_url = extract_video_url_from_script(html)
+    if script_url:
+        u1 = resolve_redirects(script_url, session) if session else script_url
+        u2 = normalize_media_url(u1)
+        u3 = rewrite_cdn_url(u2)
+        return u3
+    
     candidates = {}
 
     def score_media_url(u):
@@ -498,12 +566,15 @@ def extract_video_url_from_soup(soup, html=None):
                     or v.get('data-original')
                     or v.get('data-url')
                 )
-                primary_norm = normalize_media_url(primary_src)
-                if primary_norm and '/get_file/' in primary_norm.lower():
-                    return primary_norm
+                primary_norm = rewrite_cdn_url(normalize_media_url(primary_src))
+                if primary_norm:
+                    consider(primary_norm)
                 consider(primary_src)
                 for s in v.select('source'):
-                    consider(s.get('src') or s.get('data-src') or s.get('data-lazy-src'))
+                    val = s.get('src') or s.get('data-src') or s.get('data-lazy-src')
+                    if val:
+                        consider(rewrite_cdn_url(normalize_media_url(val)))
+                        consider(val)
     except Exception:
         pass
 
@@ -517,12 +588,15 @@ def extract_video_url_from_soup(soup, html=None):
             or v.get('data-mp4')
             or v.get('data-video')
         )
-        v_norm = normalize_media_url(v_src)
-        if v_norm and '/get_file/' in v_norm.lower():
-            return v_norm
+        v_norm = rewrite_cdn_url(normalize_media_url(v_src))
+        if v_norm:
+            consider(v_norm)
         consider(v_src)
         for s in v.select('source'):
-            consider(s.get('src') or s.get('data-src') or s.get('data-lazy-src'))
+            val = s.get('src') or s.get('data-src') or s.get('data-lazy-src')
+            if val:
+                consider(rewrite_cdn_url(normalize_media_url(val)))
+                consider(val)
 
     if not candidates:
         try:
@@ -563,8 +637,17 @@ def extract_video_url_from_soup(soup, html=None):
 
     if candidates:
         best = sorted(candidates.items(), key=lambda kv: (kv[1], len(kv[0])), reverse=True)[0][0]
-        return best
-    return first_media_url_from_text(html or '')
+        u1 = normalize_media_url(best)
+        u2 = resolve_redirects(u1, session) if session else u1
+        u3 = normalize_media_url(u2)
+        u4 = rewrite_cdn_url(u3)
+        return u4
+    u0 = first_media_url_from_text(html or '')
+    u1 = normalize_media_url(u0)
+    u2 = resolve_redirects(u1, session) if session else u1
+    u3 = normalize_media_url(u2)
+    u4 = rewrite_cdn_url(u3)
+    return u4
 
 def extract_tags_texts_from_soup(soup):
     out = []
@@ -611,15 +694,21 @@ def parse_post(html, post_url, post_title, listing_image):
             src = img.get('src') or img.get('data-src')
             if src:
                 image_url = src if src.startswith('http') else urljoin(BASE_URL, src)
+    v_norm = normalize_media_url(video_url)
+    v_cdn = rewrite_cdn_url(v_norm)
     return {
         'title': clean_text(post_title),
         'title_raw': post_title or '',
         'link': post_url,
-        'video_url': video_url,
+        'video_url': v_norm,
+        'video_src': v_cdn,
         'image_url': image_url,
         'meta_description': clean_text(meta_desc),
         'og_title': clean_text(og_title or title_tag_text),
         'og_description': clean_text(og_desc or meta_desc),
+        'run_id': PROGRESS_RUN_ID or '',
+        'base_url': BASE_URL or '',
+        'cdn_url': CDN_URL or '',
     }
 
 def scrape_tags(scraper):
@@ -821,6 +910,12 @@ def scrape():
             else:
                 data = parse_post(post_html, post['link'], post['title'], post.get('image_url'))
                 data['new_run_flag'] = True
+                if PROGRESS_RUN_ID:
+                    data['run_id'] = PROGRESS_RUN_ID
+                if BASE_URL:
+                    data['base_url'] = BASE_URL
+                if CDN_URL:
+                    data['cdn_url'] = CDN_URL
                 new_results.append(data)
             write_external_progress(
                 {
@@ -929,6 +1024,25 @@ def scrape():
             process_listing_html(page, page_url, html)
     tags = scrape_tags(scraper)
     merged_posts = filtered_existing_posts + new_results
+    try:
+        for p in merged_posts:
+            if isinstance(p, dict):
+                v = p.get('video_url') or p.get('video_src')
+                if v:
+                    vv = rewrite_cdn_url(normalize_media_url(v))
+                    if vv:
+                        p['video_src'] = vv
+                    if vv and (vv != v or '/get_file/' in str(v).lower()):
+                        if not p.get('video_src') and p.get('video_url'):
+                            p['video_url'] = vv
+                if BASE_URL and not p.get('base_url'):
+                    p['base_url'] = BASE_URL
+                if CDN_URL and not p.get('cdn_url'):
+                    p['cdn_url'] = CDN_URL
+                if PROGRESS_RUN_ID and not p.get('run_id'):
+                    p['run_id'] = PROGRESS_RUN_ID
+    except Exception:
+        pass
     write_results(merged_posts, tags, {
         'pages_completed': pages_processed,
         'page_limit': PAGE_LIMIT,
@@ -962,6 +1076,7 @@ def run_flask_server():
     progress_path = os.path.join(runtime_dir, 'scraper-progress.json')
     live_log_path = os.path.join(runtime_dir, 'scraper-live.log')
     scraper_log_path = os.path.join(runtime_dir, 'scraper.log')
+    targets_path = os.path.join(runtime_dir, 'targets.json')
     try:
         if not os.path.exists(progress_path):
             with open(progress_path, 'w', encoding='utf-8') as f:
@@ -1043,12 +1158,94 @@ def run_flask_server():
             )
             """
         )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS targets (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              base_url TEXT UNIQUE NOT NULL,
+              cdn_url TEXT,
+              config_json TEXT,
+              start_page INTEGER,
+              page_limit INTEGER,
+              max_posts INTEGER,
+              scrape_order TEXT,
+              use_selenium INTEGER,
+              auto_publish INTEGER,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            )
+            """
+        )
         try:
             cur.execute("ALTER TABLE runs ADD COLUMN pid INTEGER")
         except Exception:
             pass
         conn.commit()
         conn.close()
+
+    def read_targets():
+        try:
+            conn = db()
+            cur = conn.cursor()
+            cur.execute("SELECT base_url, cdn_url, config_json, start_page, page_limit, max_posts, scrape_order, use_selenium, auto_publish FROM targets ORDER BY updated_at DESC")
+            rows = [dict(r) for r in cur.fetchall()]
+            conn.close()
+            out = []
+            for r in rows:
+                cfg = {}
+                try:
+                    cfg = json.loads(r.get('config_json') or '{}')
+                except Exception:
+                    cfg = {}
+                out.append({
+                    'baseUrl': r.get('base_url') or '',
+                    'cdnUrl': r.get('cdn_url') or '',
+                    'startPage': int(r.get('start_page') or 1),
+                    'pageLimit': int(r.get('page_limit') or 1),
+                    'maxPosts': int(r.get('max_posts') or 0),
+                    'scrapeOrder': (r.get('scrape_order') or 'asc'),
+                    'useSelenium': bool(r.get('use_selenium') or 0),
+                    'autoPublish': bool(r.get('auto_publish') or 0),
+                    'config': cfg,
+                })
+            return out
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        return []
+
+    def write_targets(data):
+        try:
+            arr = [x for x in (data or []) if isinstance(x, dict)]
+            now = utc_now_iso()
+            conn = db()
+            cur = conn.cursor()
+            cur.execute("DELETE FROM targets")
+            for t in arr:
+                base_url = str(t.get('baseUrl') or t.get('base_url') or '').strip()
+                cdn_url = str(t.get('cdnUrl') or t.get('cdn_url') or '').strip()
+                start_page = int(t.get('startPage') or t.get('start_page') or 1)
+                page_limit = int(t.get('pageLimit') or t.get('page_limit') or 1)
+                max_posts = int((t.get('maxPosts') or t.get('max_posts') or 0) or 0)
+                scrape_order = str(t.get('scrapeOrder') or t.get('scrape_order') or 'asc').strip()
+                use_selenium = 1 if (t.get('useSelenium') or t.get('use_selenium')) else 0
+                auto_publish = 1 if t.get('autoPublish') else 0
+                cfg = t.get('config') or {}
+                cur.execute(
+                    "INSERT INTO targets (base_url, cdn_url, config_json, start_page, page_limit, max_posts, scrape_order, use_selenium, auto_publish, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (base_url, cdn_url, json_dumps(cfg), start_page, page_limit, max_posts, scrape_order, use_selenium, auto_publish, now, now),
+                )
+            conn.commit()
+            conn.close()
+            return True
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            return False
 
     def write_progress(data):
         try:
@@ -1317,6 +1514,9 @@ def run_flask_server():
                 env['OG_TITLE_SELECTOR'] = str(og_title_sel)
             if og_desc_sel:
                 env['OG_DESCRIPTION_SELECTOR'] = str(og_desc_sel)
+        cdn_url = normalize_text(target.get('cdnUrl') or target.get('cdn_url') or '')
+        if cdn_url:
+            env['CDN_URL'] = cdn_url
         env['SCRAPER_PROGRESS_FILE'] = progress_path
         env['SCRAPER_RUN_ID'] = run_id
         env['SCRAPER_TARGET_INDEX'] = str(int(target_index or 0))
@@ -1808,6 +2008,7 @@ def run_flask_server():
                 'id': 'banglachotikahinii_videos',
                 'label': 'banglachotikahinii.com/videos',
                 'baseUrl': 'https://www.banglachotikahinii.com/videos',
+                 'cdnUrl': 'https://cdn.banglachotikahinii.com',
                 'pagination': {
                     'mode': 'kvs_ajax',
                     'page1': '/',
@@ -1849,6 +2050,85 @@ def run_flask_server():
                 'recommendedTargets': [
                     {
                         'baseUrl': 'https://www.banglachotikahinii.com/videos',
+                         'cdnUrl': 'https://cdn.banglachotikahinii.com',
+                        'pageLimit': 2,
+                        'query': '',
+                        'mode': 'details',
+                        'autoPublish': False,
+                    }
+                ],
+            },
+             {
+                'id': 'desitales2_videos',
+                'label': 'desitales2.com/videos',
+                'baseUrl': 'https://www.desitales2.com/videos',
+                 'cdnUrl': 'https://cdn.desitales2.com/',
+                "pagination": {
+                    "mode": "kvs_ajax",
+                    "nextSelector": "#list_videos_most_recent_videos_pagination a.next[data-action=\"ajax\"]",
+                    "page1": "/",
+                    "paginationSelector": "#list_videos_most_recent_videos_pagination a[data-action=\"ajax\"]"
+                },
+                "listing": {
+                    "entrySelector": ".list-videos .item a[href]",
+                    "fields": [
+                    {
+                        "name": "link",
+                        "source": "a.href"
+                    },
+                    {
+                        "name": "image_url",
+                        "source": "img.thumb.src"
+                    },
+                    {
+                        "name": "title",
+                        "source": "strong.title OR a.title"
+                    }
+                    ],
+                    "titleSelector": "strong.title"
+                },
+                "details": {
+                    "fields": [
+                    {
+                        "name": "video_src",
+                        "source": "video.src"
+                    },
+                    {
+                        "name": "slinks_texts",
+                        "source": "tagsSelector texts"
+                    }
+                    ],
+                    "meta": [
+                    {
+                        "name": "meta_description",
+                        "source": "meta[name=\"description\"]"
+                    },
+                    {
+                        "name": "og_title",
+                        "source": "meta[property=\"og:title\"] OR <title>"
+                    },
+                    {
+                        "name": "og_description",
+                        "source": "meta[property=\"og:description\"] OR meta_description"
+                    }
+                    ],
+                    "tagsSelector": "div.video-info a[href*='/tags/'], .item-attributes a[href*='/tags/'], a.btn[href*='/tags/']",
+                    "videoSelector": "#kt_player video.fp-engine[src], #kt_player video[src], .fp-player video[src], video[src]"
+                },
+                'collectedPostFields': [
+                    'title',
+                    'link',
+                    'image_url',
+                    'meta_description',
+                    'og_title',
+                    'og_description',
+                    'video_src',
+                    'slinks_texts',
+                ],
+                'recommendedTargets': [
+                    {
+                        'baseUrl': 'https://www.desitales2.com/videos',
+                        'cdnUrl': 'https://cdn.desitales2.com/',
                         'pageLimit': 2,
                         'query': '',
                         'mode': 'details',
@@ -2854,6 +3134,54 @@ def run_flask_server():
     def api_publish_sanity():
         return jsonify({'ok': False, 'error': 'publishing moved to web API'}), 410
 
+    @app.get('/api/targets')
+    def api_targets_get():
+        return jsonify({'ok': True, 'data': read_targets()})
+
+    @app.post('/api/targets')
+    def api_targets_set():
+        data = request.get_json(silent=True) or {}
+        arr = data.get('data') or data.get('targets') or []
+        if write_targets(arr):
+            return jsonify({'ok': True, 'data': {'count': len(arr)}})
+        return jsonify({'ok': False, 'error': 'write_failed'}), 500
+
+    @app.post('/api/clear-live')
+    def api_clear_live():
+        try:
+            with open(live_log_path, 'w', encoding='utf-8') as f:
+                f.write('')
+        except Exception:
+            pass
+        try:
+            with open(progress_path, 'w', encoding='utf-8') as f:
+                json.dump({}, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+        return jsonify({'ok': True})
+
+    @app.post('/api/clear-results')
+    def api_clear_results():
+        try:
+            conn = db()
+            cur = conn.cursor()
+            cur.execute("DELETE FROM runs")
+            conn.commit()
+            conn.close()
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        try:
+            for name in ('listing-posts.json', 'run-details.json', 'enhanced-extract-results.json'):
+                p = os.path.join(OUTPUT_DIR, name)
+                if os.path.exists(p):
+                    os.remove(p)
+        except Exception:
+            pass
+        return jsonify({'ok': True})
+
     @app.get('/health')
     def health():
         return jsonify({'ok': True})
@@ -3149,6 +3477,30 @@ def run_flask_server():
         cur.execute("DELETE FROM runs WHERE id=?", (run_id,))
         conn.commit()
         conn.close()
+        try:
+            enhanced_path = os.path.join(OUTPUT_DIR, 'enhanced-extract-results.json')
+            if os.path.exists(enhanced_path):
+                with open(enhanced_path, 'r', encoding='utf-8') as f:
+                    ed = json.load(f) or {}
+                arr = ed.get('posts') if isinstance(ed, dict) else None
+                if isinstance(arr, list):
+                    arr2 = [p for p in arr if not (isinstance(p, dict) and str(p.get('run_id') or '').strip() == str(run_id).strip())]
+                    with open(enhanced_path, 'w', encoding='utf-8') as f2:
+                        json.dump({'posts': arr2, 'tags': ed.get('tags') or []}, f2, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+        try:
+            details_path = os.path.join(OUTPUT_DIR, 'post-details.json')
+            if os.path.exists(details_path):
+                with open(details_path, 'r', encoding='utf-8') as f:
+                    dd = json.load(f) or {}
+                arr = dd.get('posts') if isinstance(dd, dict) else None
+                if isinstance(arr, list):
+                    arr2 = [p for p in arr if not (isinstance(p, dict) and str(p.get('run_id') or '').strip() == str(run_id).strip())]
+                    with open(details_path, 'w', encoding='utf-8') as f2:
+                        json.dump({'count': len(arr2), 'posts': arr2}, f2, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
         return jsonify({'ok': True})
 
     @app.post('/api/runs/<run_id>/mark-published')
@@ -3332,6 +3684,7 @@ if __name__ == '__main__':
                     {
                         'running': True,
                         'phase': 'details',
+                        'baseUrl': BASE_URL,
                         'detailsIndex': idx,
                         'detailsTotal': total,
                         'detailsCompleted': done_count,
@@ -3376,8 +3729,11 @@ if __name__ == '__main__':
                     'meta_description': meta_description,
                     'og_title': og_title,
                     'og_description': og_description,
-                    'video_src': video_src,
-                    'slinks_texts': slinks_texts
+                    'video_src': rewrite_cdn_url(normalize_media_url(video_src)),
+                    'slinks_texts': slinks_texts,
+                    'run_id': os.environ.get('RUN_ID') or '',
+                    'base_url': BASE_URL or '',
+                    'cdn_url': CDN_URL or ''
                 }
                 done_count += 1
                 if (idx - last_flush) >= 5 or idx == (total - 1):
@@ -3407,6 +3763,9 @@ if __name__ == '__main__':
                             'video_src': None,
                             'slinks_texts': [],
                             'error': 'Missing details',
+                            'run_id': os.environ.get('RUN_ID') or '',
+                            'base_url': BASE_URL or '',
+                            'cdn_url': CDN_URL or ''
                         }
                     )
             # Write run-specific details
@@ -3451,10 +3810,15 @@ if __name__ == '__main__':
                 print(f"Failed to update global post-details.json: {e}")
             
             print(json.dumps({'count': len(final_posts)}, ensure_ascii=False))
+            try:
+                write_results(final_posts, [])
+            except Exception:
+                pass
             write_external_progress(
                 {
                     'running': False,
                     'phase': 'details_done',
+                    'baseUrl': BASE_URL,
                     'detailsTotal': total,
                     'detailsCompleted': len(final_posts),
                     'finishedAt': time.strftime('%Y-%m-%d %H:%M:%S'),

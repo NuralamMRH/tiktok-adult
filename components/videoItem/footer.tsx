@@ -73,10 +73,10 @@ export function VideoFooter({ creator, caption, createdAt }: Props) {
         >
           {creator.userName}
         </Link>{' '}
-        •{' '}
-        <span className='text-xs italic' suppressHydrationWarning>
+        {/* •{' '} */}
+        {/* <span className='text-xs italic' suppressHydrationWarning>
           {formatDate(createdAt)}
-        </span>
+        </span> */}
       </p>
 
       <div
@@ -104,7 +104,7 @@ export function VideoFooter({ creator, caption, createdAt }: Props) {
 
       {isClient && process.env.NEXT_SHOW_ADSTRA_ADS !== 'false' && (
         <>
-          <div className='fixed left-1/2 top-2 z-40 -translate-x-1/2'>
+          <div className='fixed left-1/2 top-2 z-[9999] -translate-x-1/2'>
             <div className='float-end h-[50px] w-[300px]'>
               <InlineAd
                 adKey='446cc2bf6c736ad4493623200de984b7'
@@ -113,7 +113,7 @@ export function VideoFooter({ creator, caption, createdAt }: Props) {
               />
             </div>
           </div>
-          <div className='fixed right-0 top-1/2 z-40 -translate-x-1/2'>
+          <div className='fixed right-0 top-1/2 z-[9999] -translate-x-1/2'>
             <div className='h-[250px] w-[300px]'>
               <InlineAd
                 adKey='771efbd0629abd37a6249d9c668dd549'
@@ -122,7 +122,7 @@ export function VideoFooter({ creator, caption, createdAt }: Props) {
               />
             </div>
           </div>
-          <div className='fixed bottom-2 left-1/2 z-40 -translate-x-1/2'>
+          <div className='fixed bottom-2 left-1/2 z-[9999] -translate-x-1/2'>
             <div className='h-[60px] w-[468px]'>
               <InlineAd
                 adKey='db15771db06499df2dae745623193419'

@@ -47,7 +47,7 @@ services:
       - DAILY_PAGE_LIMIT=1
       - SAVE_DEBUG_HTML=0
       - SCRAPER_PORT=4000
-      - USE_SELENIUM=0
+      - USE_SELENIUM=1
       - SCRAPER_DEV_RELOAD=${SCRAPER_DEV_RELOAD:-1}
     ports:
       - '4000:4000'
